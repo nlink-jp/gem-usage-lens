@@ -108,7 +108,7 @@ transcript の使用レコード（gem-agent ADR-0057）:
 
 ```json
 {"key":"2026-09-01","records":12,"prompt_tokens":1,"output_tokens":1,"thoughts_tokens":1,
- "cached_tokens":1,"total_tokens":3,"cost_usd":0.01}
+ "cached_tokens":1,"total_tokens":3,"cost_usd":0.01,"partial_records":0}
 ```
 
 `report --summary --json` は `unpriced_records` / `unpriced_models` を含む
@@ -121,7 +121,8 @@ transcript の使用レコード（gem-agent ADR-0057）:
  "next_reset":"2026-10-01T00:00:00+09:00","elapsed_fraction":0.05,
  "cost":{"limit":100,"used":12.3,"remaining":87.7,"percent":12.3,"state":"normal",
          "forecast":{"projected":246,"percent":246,"exhaustion_at":"...","reliable":true,"state":"critical"}},
- "tokens":{"limit":0,"used":123456,"remaining":0,"percent":0,"state":"unset","forecast":null}}
+ "tokens":{"limit":0,"used":123456,"remaining":0,"percent":0,"state":"unset","forecast":null},
+ "partial_records":0}
 ```
 
 ### Configuration

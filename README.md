@@ -60,7 +60,7 @@ gem-usage-lens budget --limit-usd 100
 | `verify` | Check every transcript's accounting checksum (`prompt + output + thoughts == total`) and list files written before gem-agent ADR-0057. |
 | `doctor` | Show the resolved sessions root, config path (or every path searched) and store path. |
 | `watch` | Poll and ingest continuously, printing live cost deltas (`--interval 5s`). |
-| `daemon` | `install` / `uninstall` / `status` a launchd job that runs `ingest` periodically (macOS). |
+| `daemon` | `install` / `uninstall` / `status` a launchd job that runs `ingest` periodically (macOS). Install it from the installed binary (Homebrew / PATH), not a development build that gets rebuilt. |
 
 `--since` accepts a date (`2026-09-01`), a datetime (`2026-09-01T09:00`),
 RFC 3339, a relative range (`7d`), `today`, or `month` (the 1st of the current
@@ -158,10 +158,13 @@ deleted by `ingest`, so history outlives the transcripts.
 | Files | `**/*.jsonl` (one per session; a resume appends to the same file) |
 | Records | `{"kind":"usage","data":{"source","model","prompt","output","thoughts","cached","total"}}` and the session header's `model` / `project` / `location` |
 
-Records are keyed by file and byte offset, so re-running `ingest` never double
-counts. A line still being written is left for the next run.
+Records are keyed by file (relative to the sessions root) and byte offset, so
+re-running `ingest` never double counts, and the GUI, `watch` and the daemon
+can ingest concurrently. A line still being written is left for the next run.
+Changing the sessions root re-keys every file: delete `usage.db` afterwards
+rather than ingest the same transcripts twice.
 
-Transcripts from gem-agent before v0.57 (ADR-0057) carry only main-loop rounds
+Transcripts from gem-agent before v0.55 (ADR-0057, 2026-08-30) carry only main-loop rounds
 without `source` / `model`; those are filled from the header and flagged
 `partial`. `verify` lists them.
 

@@ -10,8 +10,8 @@ forecast. The counterpart of `claude-usage-lens`, forked from its skeleton.
 The menu-bar front-end is the separate `gem-usage-lens-gui` (SwiftUI), which
 only calls this CLI's `--json` outputs.
 
-Current state: every command works end-to-end on real data (79 transcripts,
-1,062 records, 0 checksum mismatches): `ingest`, `reprice`, `report`,
+Current state: every command works end-to-end on the author's real data
+(`verify` reports 0 checksum mismatches): `ingest`, `reprice`, `report`,
 `budget`, `sessions`, `models`, `verify`, `doctor`, `watch`, `daemon`.
 
 ## Build & test
@@ -59,7 +59,7 @@ docs/{en,ja}/           RFP (canonical design)
   last line (gem-agent mid-write) is re-read next pass, never counted twice.
   The header is re-read on every incremental pass (legacy records take their
   model from it).
-- **Legacy transcripts (before 2026-08-30) are partial, and say so.** A
+- **Legacy transcripts (before gem-agent v0.55 / 2026-08-30) are partial, and say so.** A
   `usage` record without `source` is a pre-0057 main-loop round: source=main,
   model from the header, `partial=true`. Their files never recorded risk /
   compaction spend. Legacy side-call records with a model (`summary_usage`)
@@ -97,6 +97,16 @@ docs/{en,ja}/           RFP (canonical design)
 - **Store rows are never deleted by ingest.** History outlives the source.
   Schema changes need an entry in `store.addedColumns` (idempotent ALTER on
   every Open) — `CREATE TABLE IF NOT EXISTS` won't add columns.
+- **The dedup key is root-relative.** Changing the sessions root (flag, config
+  or `GEMAGENT_STATE_DIR`) re-keys every file and a fresh ingest would double
+  count; the documented remedy is deleting `usage.db`. A session id + offset
+  key would be root-independent but ids are only unique per project dir.
+- **One record is one model call, except `agentic_file_search`**, which
+  gem-agent logs as a single summed record for its child rounds: cost is
+  linear so the money is right, but `records` under-counts calls there.
+- **Concurrent ingests are safe** (WAL + `DO NOTHING`): the GUI's minute
+  timer, `watch` and the daemon may all run. `daemon install` records
+  `os.Executable()` — install it from the brew / PATH copy, not `dist/`.
 - **`daemon` is launchd-only** (darwin build tag); other OSes get
   `ErrDaemonUnsupported` and a `watch` hint. gem-agent is macOS-only anyway.
 - **`--version` and `version` print the same line** (the tap formula's test

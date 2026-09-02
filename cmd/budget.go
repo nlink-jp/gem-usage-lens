@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/nlink-jp/gem-usage-lens/core/budget"
@@ -72,7 +73,8 @@ func runBudget(args []string) error {
 	if *asJSON {
 		return printJSON(status)
 	}
-	printBudget(fs.Output(), status, loc)
+	// stdout, explicitly: a FlagSet's Output() is stderr, and a report is data.
+	printBudget(os.Stdout, status, loc)
 	return nil
 }
 

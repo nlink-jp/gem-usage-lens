@@ -7,23 +7,23 @@ import "strings"
 // Rates are USD prices per 1,000,000 tokens for one model, plus the
 // modifiers the cost engine applies.
 type Rates struct {
-	InputPerMTok  float64 // prompt tokens that were not served from cache
-	OutputPerMTok float64 // output AND thinking tokens ("answer and reasoning" share one price)
+	InputPerMTok  float64 `json:"input_per_mtok"`  // prompt tokens that were not served from cache
+	OutputPerMTok float64 `json:"output_per_mtok"` // output AND thinking tokens ("answer and reasoning" share one price)
 
 	// CacheReadMultiplier × InputPerMTok is the price of a cached prompt
 	// token. 0.1 for every Gemini 3 model on the pricing page today, but kept
 	// per model: the one footnoted exception is what breaks a constant.
-	CacheReadMultiplier float64
+	CacheReadMultiplier float64 `json:"cache_read_multiplier"`
 
 	// GroundingPerReq is the per-request charge for Grounding with Google
 	// Search, added once per web_search call. It is invisible in the token
 	// counts, which is why it is a separate field (gem-agent ADR-0057 lesson).
-	GroundingPerReq float64
+	GroundingPerReq float64 `json:"grounding_per_req"`
 
 	// NonGlobalMultiplier scales the whole cost when the session billed
 	// against a regional endpoint instead of "global" (the pricing page's
 	// "non-global" column is 1.1× across the board).
-	NonGlobalMultiplier float64
+	NonGlobalMultiplier float64 `json:"non_global_multiplier"`
 }
 
 // Table maps a model id to its Rates. The built-in Default is overridden by

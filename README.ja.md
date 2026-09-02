@@ -56,7 +56,7 @@ gem-usage-lens budget --limit-usd 100
 | `verify` | 全 transcript の会計チェックサム（`prompt + output + thoughts == total`）を検査し、gem-agent ADR-0057 以前のファイルを列挙。 |
 | `doctor` | sessions root・config パス（無ければ探索した全パス）・store パスを表示。 |
 | `watch` | ポーリングで継続取り込みし、コスト差分をライブ表示（`--interval 5s`）。 |
-| `daemon` | `ingest` を定期実行する launchd ジョブの `install` / `uninstall` / `status`（macOS）。 |
+| `daemon` | `ingest` を定期実行する launchd ジョブの `install` / `uninstall` / `status`（macOS）。再ビルドされる開発ビルドではなく、インストール済みバイナリ（Homebrew / PATH）から登録してください。 |
 
 `--since` は日付（`2026-09-01`）、日時（`2026-09-01T09:00`）、RFC 3339、相対
 （`7d`）、`today`、`month`（当月 1 日）を受け付けます。日・月の境界は `--tz`
@@ -149,10 +149,12 @@ store は macOS では `~/Library/Application Support/gem-usage-lens/usage.db`
 | ファイル | `**/*.jsonl`（1 セッション 1 ファイル。resume は同じファイルに追記） |
 | レコード | `{"kind":"usage","data":{"source","model","prompt","output","thoughts","cached","total"}}` と、ヘッダの `model` / `project` / `location` |
 
-レコードはファイル + バイトオフセットで識別するので、`ingest` を何度実行しても
-二重計上しません。書きかけの行は次回に回します。
+レコードは（sessions root からの相対）ファイルパス + バイトオフセットで識別するので、
+`ingest` を何度実行しても二重計上せず、GUI・`watch`・daemon が同時に取り込んでも
+安全です。書きかけの行は次回に回します。sessions root を変更すると全ファイルの
+キーが変わるので、その後は同じ transcript を二重に取り込まず `usage.db` を削除してください。
 
-gem-agent v0.57（ADR-0057）以前の transcript は main ループ分しか無く `source` /
+gem-agent v0.55（ADR-0057、2026-08-30）以前の transcript は main ループ分しか無く `source` /
 `model` も無いので、ヘッダから補い `partial` として印を付けます。`verify` が一覧します。
 
 ## JSON
