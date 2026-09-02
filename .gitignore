@@ -1,0 +1,31 @@
+# Build artifacts
+dist/
+
+# Go
+*.test
+*.out
+
+# Local durable store (never commit real usage data — PII)
+*.db
+*.db-wal
+*.db-shm
+
+# Validation harness against real logs (local-only, contains PII — see RFP §Testing)
+testdata/real/
+*.local.jsonl
+
+# Credentials / config with machine-specific values
+.env
+config.toml
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code
+.claude/
