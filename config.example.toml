@@ -1,0 +1,63 @@
+# gem-usage-lens configuration (example).
+#
+# Copy to one of the search locations and edit:
+#   $XDG_CONFIG_HOME/gem-usage-lens/config.toml            (when XDG_CONFIG_HOME is set)
+#   ~/.config/gem-usage-lens/config.toml
+#   ~/Library/Application Support/gem-usage-lens/config.toml   (macOS)
+# The first file found wins. Run `gem-usage-lens doctor` to see which one
+# loaded (or every path that was searched). Use a different file with
+# --config PATH.
+#
+# Every value is OPTIONAL and a missing file is not an error.
+# Precedence: command-line flags > this file > built-in / inferred defaults.
+#
+# Unknown keys are rejected with an error rather than ignored — a typo here
+# would otherwise look like a setting that works while silently doing nothing.
+
+[sources]
+# Override the inferred gem-agent sessions root. The default follows
+# gem-agent itself: $GEMAGENT_STATE_DIR/sessions when that variable is set,
+# else ~/.local/state/gem-agent/sessions. Equivalent flag: --sessions-root.
+# sessions_root = "/custom/path/gem-agent/sessions"
+
+# Override or extend the built-in per-model rate table, keyed by model id.
+# Prices are USD per 1,000,000 tokens on the global endpoint; the multipliers
+# are relative to the input price.
+#
+# Every field is optional and INHERITS when omitted — for a model the built-in
+# table knows, from that entry; for one it doesn't, from the standard
+# modifiers (cache read 0.1x, grounding $0.035/request, non-global 1.1x). So
+# overriding one price leaves the rest of the entry intact.
+#
+# A price change affects newly ingested records only, because ingest is
+# incremental. Run `gem-usage-lens reprice` afterwards to apply it to the
+# history already in the store.
+
+# Cost a built-in model at a different rate (e.g. after a price revision):
+# [pricing.models."gemini-3.7-flash"]
+# input_per_mtok  = 1.50
+# output_per_mtok = 7.50
+
+# Price a model released after this build — the standard modifiers come for
+# free. Check the pricing page's cached-input column first: if a model's
+# cached price is not 0.1x its input price, set cache_read_multiplier too.
+# [pricing.models."gemini-4-flash"]
+# input_per_mtok  = 1.0
+# output_per_mtok = 5.0
+
+# The full set of fields, for reference:
+# [pricing.models."gemini-3.7-flash"]
+# input_per_mtok        = 0.75    # prompt tokens not served from cache
+# output_per_mtok       = 3.75    # answer AND thinking tokens
+# cache_read_multiplier = 0.1     # cached prompt token = input price × this
+# grounding_per_req     = 0.035   # added once per web_search call ($35 / 1,000)
+# non_global_multiplier = 1.1     # applied when the session's location is not "global"
+
+[budget]
+# Calendar-month budget defaults for `gem-usage-lens budget` (flags override).
+# The month resets on the 1st at 00:00 in the --tz zone (local by default).
+# A limit of 0 (or unset) means that basis is not monitored.
+# monthly_usd      = 100.0
+# monthly_tokens   = 0            # billed tokens: prompt + output + thoughts
+# warn_percent     = 80
+# critical_percent = 95
