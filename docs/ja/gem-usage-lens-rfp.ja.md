@@ -85,6 +85,7 @@ transcript の使用レコード（gem-agent ADR-0057）:
 - `thoughts` は `output` と**別バケット**で、**output 単価で課金**される。
 - `cached ⊆ prompt`: cached は prompt のうち割引になる**内数**であり加算ではない。
 - `prompt + output + thoughts == total` が API 自身の数値によるチェックサム。
+- （v0.1.1 追記）API の `total` は `toolUsePromptTokenCount`（組み込みツールの結果を入力として戻した分）も含む。gem-agent はこのバケットを書かないので、残差として導出し入力単価で課金する。
 
 旧形式（ADR-0057 以前、2026-08-30 より前の gem-agent）:
 

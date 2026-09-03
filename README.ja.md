@@ -53,7 +53,7 @@ gem-usage-lens budget --limit-usd 100
 | `sessions` | セッションごとに 1 行（`--sort cost --top 10`）。 |
 | `models` | 単価表（検証日つき）と、config 由来のエントリ。 |
 | `reprice` | 単価変更後（config または新ビルド）に蓄積済みコストを再計算。`--dry-run` で確認。 |
-| `verify` | 全 transcript の会計チェックサム（`prompt + output + thoughts == total`）を検査し、gem-agent ADR-0057 以前のファイルを列挙。 |
+| `verify` | 全 transcript の会計チェックサム（`prompt + output + thoughts + tool prompt == total`）を検査し、gem-agent ADR-0057 以前のファイルを列挙。 |
 | `doctor` | sessions root・config パス（無ければ探索した全パス）・store パスを表示。 |
 | `watch` | ポーリングで継続取り込みし、コスト差分をライブ表示（`--interval 5s`）。 |
 | `daemon` | `ingest` を定期実行する launchd ジョブの `install` / `uninstall` / `status`（macOS）。再ビルドされる開発ビルドではなく、インストール済みバイナリ（Homebrew / PATH）から登録してください。 |
@@ -75,7 +75,10 @@ web_search            5        257       0         2968    1947      5172      $
 
 - **CACHED** は PROMPT のうちキャッシュから供給された分（内数。加算ではない）。
 - **THOUGHTS** は思考トークン。出力単価で課金されます。
-- **TOTAL** は prompt + output + thoughts = 課金対象トークン数。
+- **TOOL** は `toolUsePromptTokenCount`: 組み込みツール（検索グラウンディング・URL
+  context）の結果がモデルへ入力として戻された分。gem-agent はこのバケットを書きませんが
+  API の `total` には含まれるので、`gem-usage-lens` が残差として導出し入力単価で課金します。
+- **TOTAL** は prompt + output + thoughts + tool prompt = 課金対象トークン数。
 - `*` は gem-agent ADR-0057（2026-08-30）以前の transcript 由来のレコードを含む行。
   当時のファイルは risk / compaction の消費を記録していないので、その合計は下限値です。
 
@@ -104,7 +107,7 @@ Vertex AI の **global** エンドポイントにおける USD / 100 万トー�
 計算:
 
 ```
-(prompt − cached) × input  +  cached × input × 0.1  +  (output + thoughts) × output
+(prompt − cached) × input  +  cached × input × 0.1  +  tool prompt × input  +  (output + thoughts) × output
 + $0.035（web_search の場合。Google 検索グラウンディング $35 / 1,000 件）
 × 1.1（セッションの location が "global" 以外の場合）
 ```

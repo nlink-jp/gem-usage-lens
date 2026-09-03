@@ -85,6 +85,7 @@ Accounting rules (measured and fixed in ADR-0057):
 - `thoughts` is a **separate bucket** from `output` and **bills at the output price**.
 - `cached ⊆ prompt`: cached is the discounted *share* of the prompt, not an addition.
 - `prompt + output + thoughts == total` is the API's own checksum.
+- (v0.1.1 addendum) The API's `total` also includes `toolUsePromptTokenCount` (built-in tool results fed back as input). gem-agent does not write that bucket; it is derived as the remainder and billed at the input price.
 
 Legacy form (before ADR-0057, i.e. gem-agent before 2026-08-30):
 

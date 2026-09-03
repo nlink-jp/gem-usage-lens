@@ -148,12 +148,14 @@ func Open(path string) (Store, error) {
 // backfill from the transcripts: ingest is incremental and the bytes are
 // already consumed. Empty in v0.1; the mechanism is here so the first schema
 // change does not have to invent it.
-var addedColumns = []struct{ name, decl string }{}
+var addedColumns = []struct{ name, decl string }{
+	// v0.1.1: tool-use prompt tokens (the API bucket gem-agent does not write;
+	// derived from the checksum remainder). Old rows read as NULL → 0 and are
+	// re-derived on read, so `reprice` prices them without a rebuild.
+	{"tool_prompt_tokens", "INTEGER"},
+}
 
 func migrate(db *sql.DB) error {
-	if len(addedColumns) == 0 {
-		return nil
-	}
 	rows, err := db.Query("PRAGMA table_info(usage_records)")
 	if err != nil {
 		return err
@@ -189,9 +191,9 @@ func migrate(db *sql.DB) error {
 
 const upsertSQL = `INSERT INTO usage_records
  (record_key, ts, host, session_id, project, model, source, location,
-  prompt_tokens, output_tokens, thoughts_tokens, cached_tokens, total_tokens,
+  prompt_tokens, output_tokens, thoughts_tokens, cached_tokens, total_tokens, tool_prompt_tokens,
   checksum_ok, partial, cost_usd, ingested_at)
- VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+ VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
  ON CONFLICT(record_key) DO NOTHING`
 
 func (s *sqliteStore) Upsert(recs []model.PricedRecord) (int, error) {
@@ -222,7 +224,7 @@ func (s *sqliteStore) Upsert(recs []model.PricedRecord) (int, error) {
 		}
 		res, err := stmt.Exec(
 			r.Key, tsUnix, r.Host, r.SessionID, r.Project, r.Model, string(r.Source), r.Location,
-			r.Usage.Prompt, r.Usage.Output, r.Usage.Thoughts, r.Usage.Cached, r.Usage.Total,
+			r.Usage.Prompt, r.Usage.Output, r.Usage.Thoughts, r.Usage.Cached, r.Usage.Total, r.Usage.ToolPrompt,
 			boolInt(r.Usage.ChecksumOK()), boolInt(r.Partial), r.Cost.ListPriceUSD, now,
 		)
 		if err != nil {
@@ -247,7 +249,7 @@ func boolInt(b bool) int {
 }
 
 const querySelect = `SELECT record_key, ts, host, session_id, project, model, source, location,
- prompt_tokens, output_tokens, thoughts_tokens, cached_tokens, total_tokens, partial, cost_usd
+ prompt_tokens, output_tokens, thoughts_tokens, cached_tokens, total_tokens, COALESCE(tool_prompt_tokens, 0), partial, cost_usd
  FROM usage_records WHERE 1=1`
 
 func (s *sqliteStore) Query(f Filter) ([]model.PricedRecord, error) {
@@ -281,13 +283,16 @@ func (s *sqliteStore) Query(f Filter) ([]model.PricedRecord, error) {
 		var partial int
 		if err := rows.Scan(
 			&r.Key, &tsUnix, &r.Host, &r.SessionID, &r.Project, &r.Model, &src, &r.Location,
-			&r.Usage.Prompt, &r.Usage.Output, &r.Usage.Thoughts, &r.Usage.Cached, &r.Usage.Total,
+			&r.Usage.Prompt, &r.Usage.Output, &r.Usage.Thoughts, &r.Usage.Cached, &r.Usage.Total, &r.Usage.ToolPrompt,
 			&partial, &r.Cost.ListPriceUSD,
 		); err != nil {
 			return out, err
 		}
 		r.Source = model.Source(src)
 		r.Partial = partial != 0
+		// Rows written before the tool-prompt column existed carry the bucket
+		// inside total only; derive it on read so old stores report correctly.
+		r.Usage = r.Usage.WithDerivedToolPrompt()
 		if tsUnix > 0 {
 			r.Timestamp = time.Unix(tsUnix, 0).UTC()
 		}
@@ -297,7 +302,7 @@ func (s *sqliteStore) Query(f Filter) ([]model.PricedRecord, error) {
 }
 
 const repriceSelect = `SELECT record_key, model, source, location,
- prompt_tokens, output_tokens, thoughts_tokens, cached_tokens, total_tokens, cost_usd
+ prompt_tokens, output_tokens, thoughts_tokens, cached_tokens, total_tokens, COALESCE(tool_prompt_tokens, 0), cost_usd
  FROM usage_records`
 
 func (s *sqliteStore) Reprice(price func(model.UsageRecord) model.Cost, dryRun bool) (RepriceResult, error) {
@@ -306,8 +311,10 @@ func (s *sqliteStore) Reprice(price func(model.UsageRecord) model.Cost, dryRun b
 	// Collect first, then write: SQLite dislikes UPDATEs issued while its own
 	// SELECT cursor is still open on the same table.
 	type change struct {
-		key  string
-		cost float64
+		key        string
+		cost       float64
+		toolPrompt int64
+		checksumOK bool
 	}
 	var changes []change
 
@@ -321,12 +328,13 @@ func (s *sqliteStore) Reprice(price func(model.UsageRecord) model.Cost, dryRun b
 		var old float64
 		if err := rows.Scan(
 			&rec.Key, &rec.Model, &src, &rec.Location,
-			&rec.Usage.Prompt, &rec.Usage.Output, &rec.Usage.Thoughts, &rec.Usage.Cached, &rec.Usage.Total, &old,
+			&rec.Usage.Prompt, &rec.Usage.Output, &rec.Usage.Thoughts, &rec.Usage.Cached, &rec.Usage.Total, &rec.Usage.ToolPrompt, &old,
 		); err != nil {
 			rows.Close()
 			return res, err
 		}
 		rec.Source = model.Source(src)
+		rec.Usage = rec.Usage.WithDerivedToolPrompt()
 		now := price(rec).ListPriceUSD
 
 		res.Scanned++
@@ -334,7 +342,7 @@ func (s *sqliteStore) Reprice(price func(model.UsageRecord) model.Cost, dryRun b
 		res.NewTotalUSD += now
 		if now != old {
 			res.Changed++
-			changes = append(changes, change{rec.Key, now})
+			changes = append(changes, change{rec.Key, now, rec.Usage.ToolPrompt, rec.Usage.ChecksumOK()})
 		}
 	}
 	rows.Close()
@@ -349,14 +357,17 @@ func (s *sqliteStore) Reprice(price func(model.UsageRecord) model.Cost, dryRun b
 	if err != nil {
 		return res, err
 	}
-	stmt, err := tx.Prepare("UPDATE usage_records SET cost_usd = ? WHERE record_key = ?")
+	// Reprice also persists the derived tool-prompt bucket and the checksum
+	// verdict it restores, so a store migrated from v0.1.0 stops reporting
+	// those rows as mismatches once repriced.
+	stmt, err := tx.Prepare("UPDATE usage_records SET cost_usd = ?, tool_prompt_tokens = ?, checksum_ok = ? WHERE record_key = ?")
 	if err != nil {
 		tx.Rollback()
 		return res, err
 	}
 	defer stmt.Close()
 	for _, c := range changes {
-		if _, err := stmt.Exec(c.cost, c.key); err != nil {
+		if _, err := stmt.Exec(c.cost, c.toolPrompt, boolInt(c.checksumOK), c.key); err != nil {
 			tx.Rollback()
 			return res, err
 		}

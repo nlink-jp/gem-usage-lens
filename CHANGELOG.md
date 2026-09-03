@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-03
+
+### Fixed
+
+- Calls that used a built-in tool (Google Search grounding, URL context)
+  failed the accounting checksum: the API's `total` includes
+  `toolUsePromptTokenCount` — tool results fed back to the model as input —
+  which gem-agent does not write. The remainder is now derived as the
+  `tool_prompt` bucket (exact: it is the only unwritten one), billed at the
+  input price, shown as the `TOOL` column / `tool_prompt_tokens` field, and
+  counted by `verify` as `TOOL-DERIVED` instead of `CHECKSUM-NG`. Existing
+  stores gain the column on open and are corrected by `reprice`.
+
 ## [0.1.0] - 2026-09-03
 
 Initial release — the gem-agent counterpart of claude-usage-lens.

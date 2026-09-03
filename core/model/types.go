@@ -47,14 +47,39 @@ type Usage struct {
 	Output   int64
 	Thoughts int64
 	Cached   int64
-	Total    int64
+	// ToolPrompt is the API's toolUsePromptTokenCount: the results of built-in
+	// tool executions (Google Search grounding, URL context) fed back to the
+	// model as input. Billed as input, never cached. gem-agent does not write
+	// this bucket (ADR-0057 predates it), but the API defines total as
+	// prompt + candidates + tool_use_prompt + thoughts, so a record whose
+	// total exceeds the three written buckets carries the remainder here —
+	// see WithDerivedToolPrompt.
+	ToolPrompt int64
+	Total      int64
 }
 
-// ChecksumOK reports whether prompt + output + thoughts == total. A record
-// without a total (a legacy side-call) has nothing to check against and
-// passes; the aggregator must not fail loudly on a bucket it was never given.
+// ChecksumOK reports whether prompt + output + thoughts + tool prompt ==
+// total. A record without a total (a legacy side-call) has nothing to check
+// against and passes; the aggregator must not fail loudly on a bucket it was
+// never given.
 func (u Usage) ChecksumOK() bool {
-	return u.Total == 0 || u.Prompt+u.Output+u.Thoughts == u.Total
+	return u.Total == 0 || u.Prompt+u.Output+u.Thoughts+u.ToolPrompt == u.Total
+}
+
+// WithDerivedToolPrompt fills ToolPrompt from the checksum remainder when the
+// record did not carry the bucket: total − (prompt + output + thoughts),
+// when positive. The API's own definition of total makes this exact, not a
+// guess — tool-use prompt tokens are the only bucket a transcript written by
+// gem-agent omits. A total *below* the written buckets is left alone and
+// keeps failing the checksum: that is a misread, not a missing bucket.
+func (u Usage) WithDerivedToolPrompt() Usage {
+	if u.ToolPrompt != 0 || u.Total == 0 {
+		return u
+	}
+	if extra := u.Total - (u.Prompt + u.Output + u.Thoughts); extra > 0 {
+		u.ToolPrompt = extra
+	}
+	return u
 }
 
 // BilledTokens is the count a budget or a quota measures: everything the API
@@ -64,12 +89,12 @@ func (u Usage) BilledTokens() int64 {
 	if u.Total > 0 {
 		return u.Total
 	}
-	return u.Prompt + u.Output + u.Thoughts
+	return u.Prompt + u.Output + u.Thoughts + u.ToolPrompt
 }
 
 // HasTokens reports whether the record spent anything at all.
 func (u Usage) HasTokens() bool {
-	return u.Prompt+u.Output+u.Thoughts > 0
+	return u.Prompt+u.Output+u.Thoughts+u.ToolPrompt > 0
 }
 
 // UsageRecord is one model call with its provenance.

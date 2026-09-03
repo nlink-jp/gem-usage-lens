@@ -50,9 +50,20 @@ docs/{en,ja}/           RFP (canonical design)
 
 - **Accounting rules come from gem-agent ADR-0057 and are pinned by tests.**
   `thoughts` bills at the output price; `cached` is a *share* of `prompt`
-  (subtract it, never add it); `prompt + output + thoughts == total` is the
-  checksum. `cost_test.go` pins each rule separately. If the sum ever fails on
-  real data, this build misreads the transcript — `verify` exits 1.
+  (subtract it, never add it); `prompt + output + thoughts + tool_prompt ==
+  total` is the checksum. `cost_test.go` pins each rule separately. If the sum
+  ever fails on real data, this build misreads the transcript — `verify` exits 1.
+- **`tool_prompt` is the bucket gem-agent does not write.** The API defines
+  `totalTokenCount` as prompt + candidates + tool_use_prompt + thoughts
+  (genai `GenerateContentResponseUsageMetadata`); `toolUsePromptTokenCount`
+  is the results of built-in tools (search grounding, URL context) fed back
+  as input. v0.1.0 flagged such records as checksum failures. Since v0.1.1
+  `Usage.WithDerivedToolPrompt` fills it from the remainder — exact, because
+  it is the only unwritten bucket — at parse time and on every store read
+  (`Query`, `Reprice`), billed at the input price. A `tool_prompt` field in a
+  future transcript is read as written. A total *below* the buckets stays a
+  mismatch. Store column `tool_prompt_tokens` was added via `addedColumns`;
+  `reprice` persists the derived value and the restored checksum verdict.
 - **Dedup key = `<rel path>@<byte offset>`.** Records carry no message id.
   Transcripts are append-only and a resume appends to the same file, so the
   offset is stable. `ParseFrom` advances only past complete lines: a torn

@@ -57,7 +57,7 @@ gem-usage-lens budget --limit-usd 100
 | `sessions` | One row per session (`--sort cost --top 10`). |
 | `models` | The rate table with its verification date, and which entries come from your config. |
 | `reprice` | Recompute stored costs after a rate change (config or a new build). `--dry-run` previews. |
-| `verify` | Check every transcript's accounting checksum (`prompt + output + thoughts == total`) and list files written before gem-agent ADR-0057. |
+| `verify` | Check every transcript's accounting checksum (`prompt + output + thoughts + tool prompt == total`) and list files written before gem-agent ADR-0057. |
 | `doctor` | Show the resolved sessions root, config path (or every path searched) and store path. |
 | `watch` | Poll and ingest continuously, printing live cost deltas (`--interval 5s`). |
 | `daemon` | `install` / `uninstall` / `status` a launchd job that runs `ingest` periodically (macOS). Install it from the installed binary (Homebrew / PATH), not a development build that gets rebuilt. |
@@ -79,7 +79,11 @@ web_search            5        257       0         2968    1947      5172      $
 
 - **CACHED** is the share of PROMPT served from cache — not an addition.
 - **THOUGHTS** are thinking tokens; they bill at the output price.
-- **TOTAL** is prompt + output + thoughts, the billed count.
+- **TOOL** is `toolUsePromptTokenCount`: the results of built-in tools (search
+  grounding, URL context) fed back to the model as input. gem-agent does not
+  write this bucket, but the API's `total` includes it, so `gem-usage-lens`
+  derives it as the remainder and bills it as input.
+- **TOTAL** is prompt + output + thoughts + tool prompt, the billed count.
 - A `*` marks buckets containing records from transcripts written before
   gem-agent ADR-0057 (2026-08-30). Those files never recorded risk and
   compaction spend, so their totals are a lower bound.
@@ -111,7 +115,7 @@ the official pricing page and stamped with the date they were verified
 (`gem-usage-lens models` prints it). Per call:
 
 ```
-(prompt − cached) × input  +  cached × input × 0.1  +  (output + thoughts) × output
+(prompt − cached) × input  +  cached × input × 0.1  +  tool prompt × input  +  (output + thoughts) × output
 + $0.035 when the call is a web_search (Grounding with Google Search, $35 / 1,000)
 × 1.1 when the session's location is not "global"
 ```

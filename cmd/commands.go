@@ -206,8 +206,11 @@ func runIngest(args []string) error {
 	if res.Skipped > 0 {
 		fmt.Printf("  skipped:       %d legacy side-call record(s) with no model to price\n", res.Skipped)
 	}
+	if res.ToolPromptDerived > 0 {
+		fmt.Printf("  tool prompt:   %d record(s) carried tool-result tokens only inside total; derived and billed as input\n", res.ToolPromptDerived)
+	}
 	if res.ChecksumMismatches > 0 {
-		fmt.Printf("  checksum:      %d record(s) where prompt+output+thoughts != total (see `verify`)\n", res.ChecksumMismatches)
+		fmt.Printf("  checksum:      %d record(s) where prompt+output+thoughts+tool_prompt != total (see `verify`)\n", res.ChecksumMismatches)
 	}
 	if res.FileErrors > 0 {
 		fmt.Printf("  file errors:   %d (skipped)\n", res.FileErrors)
@@ -434,8 +437,8 @@ func printSummary(w io.Writer, s aggregate.Summary) {
 		period = s.FirstDay + " → " + s.LastDay
 	}
 	fmt.Fprintf(w, "period:  %s  (%d active days)\n", period, s.ActiveDays)
-	fmt.Fprintf(w, "records: %d    tokens: prompt %d (cached %d) / output %d / thoughts %d / total %d\n",
-		s.Records, s.PromptTokens, s.CachedTokens, s.OutputTokens, s.ThoughtsTokens, s.TotalTokens)
+	fmt.Fprintf(w, "records: %d    tokens: prompt %d (cached %d) / output %d / thoughts %d / tool prompt %d / total %d\n",
+		s.Records, s.PromptTokens, s.CachedTokens, s.OutputTokens, s.ThoughtsTokens, s.ToolPromptTokens, s.TotalTokens)
 	fmt.Fprintf(w, "total:   $%.2f    daily avg: $%.2f\n", s.TotalUSD, s.DailyAvgUSD)
 	if s.PeakDay != "" {
 		fmt.Fprintf(w, "peak:    %s $%.2f    projection(30d): $%.2f\n", s.PeakDay, s.PeakUSD, s.Projection30USD)
@@ -448,7 +451,7 @@ func printSummary(w io.Writer, s aggregate.Summary) {
 		fmt.Fprintf(w, "partial: %d record(s) from pre-ADR-0057 transcripts — totals are a lower bound\n", s.PartialRecords)
 	}
 	if s.ChecksumMismatches > 0 {
-		fmt.Fprintf(w, "checksum: %d record(s) where prompt+output+thoughts != total (run `verify`)\n", s.ChecksumMismatches)
+		fmt.Fprintf(w, "checksum: %d record(s) where the token buckets do not add up to total (run `verify`)\n", s.ChecksumMismatches)
 	}
 	fmt.Fprintln(w, "\n"+notionalNote)
 }
@@ -528,10 +531,10 @@ func printComparison(w io.Writer, cur, prev []model.PricedRecord) {
 func printReport(w io.Writer, rows []aggregate.Row) {
 	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
 	var trec, tpartial int
-	var tprompt, tout, tthoughts, tcached, ttotal int64
+	var tprompt, tout, tthoughts, tcached, ttool, ttotal int64
 	var tcost float64
 
-	fmt.Fprintln(tw, "KEY\tRECORDS\tPROMPT\tCACHED\tOUTPUT\tTHOUGHTS\tTOTAL\tCOST(USD)")
+	fmt.Fprintln(tw, "KEY\tRECORDS\tPROMPT\tCACHED\tOUTPUT\tTHOUGHTS\tTOOL\tTOTAL\tCOST(USD)")
 	for _, r := range rows {
 		trec += r.Records
 		tpartial += r.PartialRecords
@@ -539,20 +542,21 @@ func printReport(w io.Writer, rows []aggregate.Row) {
 		tout += r.OutputTokens
 		tthoughts += r.ThoughtsTokens
 		tcached += r.CachedTokens
+		ttool += r.ToolPromptTokens
 		ttotal += r.TotalTokens
 		tcost += r.CostUSD
 		mark := ""
 		if r.PartialRecords > 0 {
 			mark = "*"
 		}
-		fmt.Fprintf(tw, "%s%s\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", r.Key, mark, r.Records, r.PromptTokens, r.CachedTokens, r.OutputTokens, r.ThoughtsTokens, r.TotalTokens, r.CostUSD)
+		fmt.Fprintf(tw, "%s%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", r.Key, mark, r.Records, r.PromptTokens, r.CachedTokens, r.OutputTokens, r.ThoughtsTokens, r.ToolPromptTokens, r.TotalTokens, r.CostUSD)
 	}
-	fmt.Fprintf(tw, "TOTAL\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", trec, tprompt, tcached, tout, tthoughts, ttotal, tcost)
+	fmt.Fprintf(tw, "TOTAL\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", trec, tprompt, tcached, tout, tthoughts, ttool, ttotal, tcost)
 	tw.Flush()
 	if tpartial > 0 {
 		fmt.Fprintf(w, "\n* %d record(s) come from pre-ADR-0057 transcripts (risk/compaction spend never recorded) — those buckets are a lower bound.\n", tpartial)
 	}
-	fmt.Fprintln(w, "\nCACHED is the share of PROMPT served from cache (not an addition). THOUGHTS bill at the output price. "+notionalNote)
+	fmt.Fprintln(w, "\nCACHED is the share of PROMPT served from cache (not an addition). THOUGHTS bill at the output price. TOOL is built-in tool results (search grounding, URL context) fed back as input. "+notionalNote)
 }
 
 func printJSON(v any) error {
@@ -646,16 +650,17 @@ func runModels(args []string) error {
 // --- verify (transcript accounting check, straight from the files) ---
 
 type verifyRow struct {
-	Session          string `json:"session"`
-	Path             string `json:"path"`
-	HeaderFound      bool   `json:"header_found"`
-	Location         string `json:"location"`
-	Records          int    `json:"records"`
-	Legacy           int    `json:"legacy"`
-	LegacySide       int    `json:"legacy_side"`
-	Skipped          int    `json:"skipped"`
-	ChecksumMismatch int    `json:"checksum_mismatch"`
-	Error            string `json:"error,omitempty"`
+	Session           string `json:"session"`
+	Path              string `json:"path"`
+	HeaderFound       bool   `json:"header_found"`
+	Location          string `json:"location"`
+	Records           int    `json:"records"`
+	Legacy            int    `json:"legacy"`
+	LegacySide        int    `json:"legacy_side"`
+	Skipped           int    `json:"skipped"`
+	ToolPromptDerived int    `json:"tool_prompt_derived"`
+	ChecksumMismatch  int    `json:"checksum_mismatch"`
+	Error             string `json:"error,omitempty"`
 }
 
 func runVerify(args []string) error {
@@ -699,10 +704,12 @@ func runVerify(args []string) error {
 		}
 		row.Records = len(recs)
 		row.Legacy, row.LegacySide, row.Skipped, row.ChecksumMismatch = st.Legacy, st.LegacySide, st.Skipped, st.ChecksumMismatch
+		row.ToolPromptDerived = st.ToolPromptDerived
 		totals.Records += row.Records
 		totals.Legacy += row.Legacy
 		totals.LegacySide += row.LegacySide
 		totals.Skipped += row.Skipped
+		totals.ToolPromptDerived += row.ToolPromptDerived
 		totals.ChecksumMismatch += row.ChecksumMismatch
 		if row.Legacy+row.LegacySide+row.Skipped > 0 {
 			partialFiles++
@@ -724,9 +731,9 @@ func runVerify(args []string) error {
 	}
 
 	tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, "SESSION\tHEADER\tLOCATION\tRECORDS\tLEGACY\tSIDE\tSKIPPED\tCHECKSUM-NG\tNOTE")
+	fmt.Fprintln(tw, "SESSION\tHEADER\tLOCATION\tRECORDS\tLEGACY\tSIDE\tSKIPPED\tTOOL-DERIVED\tCHECKSUM-NG\tNOTE")
 	for _, r := range rows {
-		finding := r.Legacy+r.LegacySide+r.Skipped+r.ChecksumMismatch > 0 || r.Error != "" || !r.HeaderFound
+		finding := r.Legacy+r.LegacySide+r.Skipped+r.ToolPromptDerived+r.ChecksumMismatch > 0 || r.Error != "" || !r.HeaderFound
 		if !*all && !finding {
 			continue
 		}
@@ -734,13 +741,14 @@ func runVerify(args []string) error {
 		if !r.HeaderFound {
 			hdr = "MISSING"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\n", r.Session, hdr, orDash(r.Location), r.Records, r.Legacy, r.LegacySide, r.Skipped, r.ChecksumMismatch, r.Error)
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n", r.Session, hdr, orDash(r.Location), r.Records, r.Legacy, r.LegacySide, r.Skipped, r.ToolPromptDerived, r.ChecksumMismatch, r.Error)
 	}
-	fmt.Fprintf(tw, "TOTAL (%d files)\t\t\t%d\t%d\t%d\t%d\t%d\t%d partial file(s)\n", len(files), totals.Records, totals.Legacy, totals.LegacySide, totals.Skipped, totals.ChecksumMismatch, partialFiles)
+	fmt.Fprintf(tw, "TOTAL (%d files)\t\t\t%d\t%d\t%d\t%d\t%d\t%d\t%d partial file(s)\n", len(files), totals.Records, totals.Legacy, totals.LegacySide, totals.Skipped, totals.ToolPromptDerived, totals.ChecksumMismatch, partialFiles)
 	tw.Flush()
 	fmt.Println("\nLEGACY = main-loop records written before gem-agent ADR-0057 (source/model filled from the header; risk/compaction spend was never recorded).")
 	fmt.Println("SIDE = legacy side-call records taken as a lower bound; SKIPPED = legacy side-calls with no model to price.")
-	fmt.Println("CHECKSUM-NG = records where prompt + output + thoughts != total; any non-zero count means this build misreads the transcript.")
+	fmt.Println("TOOL-DERIVED = records whose tool-result tokens (toolUsePromptTokenCount: search grounding, URL context) were present only inside total; the remainder is billed as input.")
+	fmt.Println("CHECKSUM-NG = records where prompt + output + thoughts + tool prompt != total; any non-zero count means this build misreads the transcript.")
 	if totals.ChecksumMismatch > 0 {
 		return fmt.Errorf("%d record(s) failed the accounting checksum", totals.ChecksumMismatch)
 	}

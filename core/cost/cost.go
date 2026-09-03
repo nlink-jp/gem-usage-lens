@@ -15,6 +15,7 @@ const perMillion = 1_000_000.0
 //
 //	uncached prompt = (Prompt − Cached)  × InputPerMTok
 //	cached prompt   = Cached             × InputPerMTok × CacheReadMultiplier
+//	tool prompt     = ToolPrompt         × InputPerMTok   — tool results fed back as input
 //	output          = (Output + Thoughts) × OutputPerMTok   — thinking bills as output
 //	grounding       = GroundingPerReq once, when the call was a web_search
 //
@@ -32,6 +33,7 @@ func Compute(u model.Usage, r pricing.Rates, source model.Source, location strin
 	}
 	subtotal := perTok(uncached, r.InputPerMTok) +
 		perTok(u.Cached, r.InputPerMTok*r.CacheReadMultiplier) +
+		perTok(u.ToolPrompt, r.InputPerMTok) +
 		perTok(u.Output+u.Thoughts, r.OutputPerMTok)
 	if source == model.SourceWebSearch {
 		subtotal += r.GroundingPerReq

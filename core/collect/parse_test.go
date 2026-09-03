@@ -101,17 +101,43 @@ func TestParseLegacyTranscript(t *testing.T) {
 }
 
 func TestParseChecksumMismatchCounted(t *testing.T) {
-	bad := header + `{"ts":"2026-09-01T00:31:43+09:00","kind":"usage","data":{"source":"main","model":"gemini-3.7-flash","prompt":10,"output":5,"thoughts":5,"cached":0,"total":99}}` + "\n"
+	// A total BELOW the written buckets cannot be a missing bucket: it stays
+	// a mismatch (a total above them is the tool-prompt bucket, derived).
+	bad := header + `{"ts":"2026-09-01T00:31:43+09:00","kind":"usage","data":{"source":"main","model":"gemini-3.7-flash","prompt":10,"output":5,"thoughts":5,"cached":0,"total":7}}` + "\n"
 	p := writeTemp(t, "s.jsonl", bad)
 	recs, st, err := ParseFile(p, "s.jsonl", "h")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(recs) != 1 || st.ChecksumMismatch != 1 {
+	if len(recs) != 1 || st.ChecksumMismatch != 1 || st.ToolPromptDerived != 0 {
 		t.Fatalf("mismatch not counted: %d recs, stats %+v", len(recs), st)
 	}
 	if recs[0].Usage.ChecksumOK() {
 		t.Fatal("ChecksumOK must be false")
+	}
+}
+
+// A web_fetch / web_search call carries the tool's results back to the model
+// as toolUsePromptTokenCount, which the API adds to total but gem-agent does
+// not write. The remainder is that bucket — exact, not a guess.
+func TestParseDerivesToolPromptFromTotal(t *testing.T) {
+	lines := header +
+		`{"ts":"2026-09-01T08:52:29+09:00","kind":"usage","data":{"source":"web_fetch","model":"gemini-3.5-flash-lite","prompt":1200,"output":900,"thoughts":40,"cached":0,"total":9140}}` + "\n" +
+		`{"ts":"2026-09-01T08:52:30+09:00","kind":"usage","data":{"source":"web_fetch","model":"gemini-3.5-flash-lite","prompt":1200,"output":900,"thoughts":40,"cached":0,"tool_prompt":7000,"total":9140}}` + "\n"
+	p := writeTemp(t, "s.jsonl", lines)
+	recs, st, err := ParseFile(p, "s.jsonl", "h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recs) != 2 || st.ChecksumMismatch != 0 || st.ToolPromptDerived != 1 {
+		t.Fatalf("recs=%d stats=%+v", len(recs), st)
+	}
+	if recs[0].Usage.ToolPrompt != 7000 || !recs[0].Usage.ChecksumOK() || recs[0].Usage.BilledTokens() != 9140 {
+		t.Fatalf("derived: %+v", recs[0].Usage)
+	}
+	// An explicit tool_prompt (a future gem-agent) is taken as written, not re-derived.
+	if recs[1].Usage.ToolPrompt != 7000 || !recs[1].Usage.ChecksumOK() {
+		t.Fatalf("explicit: %+v", recs[1].Usage)
 	}
 }
 

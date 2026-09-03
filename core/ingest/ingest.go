@@ -26,6 +26,9 @@ type Result struct {
 	Legacy             int
 	Skipped            int
 	ChecksumMismatches int
+	// ToolPromptDerived counts records whose tool-use prompt tokens were
+	// filled from the checksum remainder (gem-agent does not write the bucket).
+	ToolPromptDerived int
 
 	// UnknownModels counts the records just ingested whose model is absent
 	// from the rate table, keyed by model id. Such records are stored at $0,
@@ -83,6 +86,7 @@ func Run(st store.Store, root string, tbl pricing.Table, host string) (Result, e
 		res.Legacy += stats.Legacy + stats.LegacySide
 		res.Skipped += stats.Skipped
 		res.ChecksumMismatches += stats.ChecksumMismatch
+		res.ToolPromptDerived += stats.ToolPromptDerived
 
 		priced := make([]model.PricedRecord, len(recs))
 		for i, r := range recs {

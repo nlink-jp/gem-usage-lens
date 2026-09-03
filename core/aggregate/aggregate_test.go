@@ -23,6 +23,17 @@ func sample() []model.PricedRecord {
 	}
 }
 
+func TestAggregateCarriesToolPrompt(t *testing.T) {
+	r := rec("2026-09-03T09:00:00Z", "s", "m", model.SourceWebFetch, model.Usage{Prompt: 100, Output: 10, ToolPrompt: 500, Total: 610}, 0.1, false)
+	rows, _ := Aggregate([]model.PricedRecord{r}, []Dimension{ByDay}, time.UTC)
+	if rows[0].ToolPromptTokens != 500 || rows[0].TotalTokens != 610 {
+		t.Fatalf("%+v", rows[0])
+	}
+	if s := Summarize([]model.PricedRecord{r}, time.UTC); s.ToolPromptTokens != 500 || s.ChecksumMismatches != 0 {
+		t.Fatalf("%+v", s)
+	}
+}
+
 func TestAggregateByDayAndSource(t *testing.T) {
 	rows, err := Aggregate(sample(), []Dimension{ByDay}, time.UTC)
 	if err != nil || len(rows) != 2 {

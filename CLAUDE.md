@@ -32,7 +32,7 @@ make vet        # host + GOOS=windows + GOOS=linux
 ## Key decisions
 
 - **Accounting = gem-agent ADR-0057**: thoughts bill as output, cached is a
-  share of prompt, `prompt + output + thoughts == total` is the checksum.
+  share of prompt, `prompt + output + thoughts + tool_prompt == total` is the checksum (tool_prompt is derived when gem-agent omits it).
 - **Dedup by file + byte offset** (no message id exists); torn lines wait.
 - **Store**: SQLite via `modernc.org/sqlite` (pure Go); rows outlive sources.
 - **Prices per model, per field** (`core/pricing`), verified on a stated date,

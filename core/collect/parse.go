@@ -35,7 +35,10 @@ type FileStats struct {
 	Legacy           int // main-loop records written before ADR-0057 (no source/model)
 	LegacySide       int // legacy side-call records taken as a lower bound (had a model)
 	Skipped          int // legacy side-call records dropped (no model to price with)
-	ChecksumMismatch int // records where prompt + output + thoughts != total
+	ChecksumMismatch int // records where the buckets do not add up to total
+	// ToolPromptDerived counts records whose tool-use prompt tokens were not
+	// written by gem-agent and were filled from the checksum remainder.
+	ToolPromptDerived int
 }
 
 // rawLine mirrors the envelope of every transcript record. Unknown fields
@@ -59,13 +62,14 @@ type rawHeader struct {
 // records (summary_usage etc.), which carry prompt/output and sometimes a
 // model but never thoughts/cached/total.
 type rawUsage struct {
-	Source   string `json:"source"`
-	Model    string `json:"model"`
-	Prompt   int64  `json:"prompt"`
-	Output   int64  `json:"output"`
-	Thoughts int64  `json:"thoughts"`
-	Cached   int64  `json:"cached"`
-	Total    int64  `json:"total"`
+	Source     string `json:"source"`
+	Model      string `json:"model"`
+	Prompt     int64  `json:"prompt"`
+	Output     int64  `json:"output"`
+	Thoughts   int64  `json:"thoughts"`
+	Cached     int64  `json:"cached"`
+	ToolPrompt int64  `json:"tool_prompt"` // not written by gem-agent yet; read when it is
+	Total      int64  `json:"total"`
 }
 
 // ReadHeader reads the session header (the first line). A file whose first
@@ -224,7 +228,11 @@ func parseLine(line []byte, hdr Header, relKey, sessionID, host string, lineStar
 		return model.UsageRecord{}, false
 	}
 
-	usage := model.Usage{Prompt: u.Prompt, Output: u.Output, Thoughts: u.Thoughts, Cached: u.Cached, Total: u.Total}
+	usage := model.Usage{Prompt: u.Prompt, Output: u.Output, Thoughts: u.Thoughts, Cached: u.Cached, ToolPrompt: u.ToolPrompt, Total: u.Total}
+	if derived := usage.WithDerivedToolPrompt(); derived.ToolPrompt != usage.ToolPrompt {
+		usage = derived
+		st.ToolPromptDerived++
+	}
 	if !usage.ChecksumOK() {
 		st.ChecksumMismatch++
 	}

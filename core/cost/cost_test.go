@@ -40,6 +40,10 @@ func TestComputeRules(t *testing.T) {
 	if got := Compute(model.Usage{Prompt: 47, Output: 617, Total: 664}, r, model.SourceWebSearch, "global"); !near(got, base+0.035) {
 		t.Fatalf("grounding: %v vs base %v", got, base)
 	}
+	// Tool results fed back as input bill at the input price, never cached.
+	if got := Compute(model.Usage{Prompt: 1000, ToolPrompt: 1_000_000, Total: 1_001_000}, r, model.SourceWebFetch, "global"); !near(got, 0.75+1000*0.75/1e6) {
+		t.Fatalf("tool prompt: %v", got)
+	}
 	// Region: a non-global session bills 1.1× the whole amount; "" counts as global.
 	if got := Compute(model.Usage{Prompt: 1_000_000, Total: 1_000_000}, r, model.SourceMain, "us-central1"); !near(got, 0.825) {
 		t.Fatalf("non-global: %v", got)

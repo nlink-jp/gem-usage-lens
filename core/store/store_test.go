@@ -1,6 +1,7 @@
 package store
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -139,6 +140,56 @@ func TestOpenTightensPermissions(t *testing.T) {
 	}
 	if fi, _ := os.Stat(p); fi.Mode().Perm() != 0o600 {
 		t.Fatalf("db perms %v", fi.Mode().Perm())
+	}
+}
+
+// A store created by v0.1.0 has no tool_prompt_tokens column and holds rows
+// whose total exceeds the written buckets. Open must add the column, Query
+// must derive the bucket on read, and Reprice must persist it.
+func TestMigrationFromV010DerivesToolPrompt(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "usage.db")
+	db, err := sql.Open("sqlite", p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := `CREATE TABLE usage_records (record_key TEXT PRIMARY KEY, ts INTEGER, host TEXT, session_id TEXT,
+	 project TEXT, model TEXT, source TEXT, location TEXT, prompt_tokens INTEGER, output_tokens INTEGER,
+	 thoughts_tokens INTEGER, cached_tokens INTEGER, total_tokens INTEGER, checksum_ok INTEGER, partial INTEGER,
+	 cost_usd REAL, ingested_at INTEGER);
+	 INSERT INTO usage_records VALUES ('k', 1, 'h', 's', '/p', 'gemini-3.7-flash', 'web_fetch', 'global',
+	 1200, 900, 40, 0, 9140, 0, 0, 0.5, 1);`
+	if _, err := db.Exec(old); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+
+	st, err := Open(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	got, err := st.Query(Filter{})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("%v %d", err, len(got))
+	}
+	if got[0].Usage.ToolPrompt != 7000 || !got[0].Usage.ChecksumOK() {
+		t.Fatalf("derived on read: %+v", got[0].Usage)
+	}
+	res, err := st.Reprice(func(r model.UsageRecord) model.Cost {
+		return model.Cost{ListPriceUSD: float64(r.Usage.ToolPrompt) / 1e6}
+	}, false)
+	if err != nil || res.Changed != 1 {
+		t.Fatalf("%+v %v", res, err)
+	}
+	var tool int64
+	var ok int
+	db, _ = sql.Open("sqlite", p)
+	defer db.Close()
+	if err := db.QueryRow("SELECT tool_prompt_tokens, checksum_ok FROM usage_records WHERE record_key='k'").Scan(&tool, &ok); err != nil {
+		t.Fatal(err)
+	}
+	if tool != 7000 || ok != 1 {
+		t.Fatalf("reprice must persist the derived bucket and the checksum verdict: %d %d", tool, ok)
 	}
 }
 

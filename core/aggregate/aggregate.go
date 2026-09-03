@@ -27,14 +27,15 @@ const (
 // Row is one aggregated bucket. Part of the `report --json` contract the GUI
 // decodes — change in lockstep with gem-usage-lens-gui.
 type Row struct {
-	Key            string  `json:"key"`
-	Records        int     `json:"records"`
-	PromptTokens   int64   `json:"prompt_tokens"`
-	OutputTokens   int64   `json:"output_tokens"`
-	ThoughtsTokens int64   `json:"thoughts_tokens"`
-	CachedTokens   int64   `json:"cached_tokens"` // the share of prompt served from cache
-	TotalTokens    int64   `json:"total_tokens"`  // prompt + output + thoughts (the billed count)
-	CostUSD        float64 `json:"cost_usd"`
+	Key              string  `json:"key"`
+	Records          int     `json:"records"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	OutputTokens     int64   `json:"output_tokens"`
+	ThoughtsTokens   int64   `json:"thoughts_tokens"`
+	CachedTokens     int64   `json:"cached_tokens"`      // the share of prompt served from cache
+	ToolPromptTokens int64   `json:"tool_prompt_tokens"` // built-in tool results fed back as input (billed as input)
+	TotalTokens      int64   `json:"total_tokens"`       // prompt + output + thoughts + tool prompt (the billed count)
+	CostUSD          float64 `json:"cost_usd"`
 	// PartialRecords counts records recovered from pre-ADR-0057 transcripts,
 	// whose files never recorded risk/compaction spend: a bucket with any is
 	// a lower bound.
@@ -63,6 +64,7 @@ func Aggregate(recs []model.PricedRecord, dims []Dimension, loc *time.Location) 
 		row.OutputTokens += r.Usage.Output
 		row.ThoughtsTokens += r.Usage.Thoughts
 		row.CachedTokens += r.Usage.Cached
+		row.ToolPromptTokens += r.Usage.ToolPrompt
 		row.TotalTokens += r.Usage.BilledTokens()
 		row.CostUSD += r.Cost.ListPriceUSD
 		if r.Partial {
@@ -255,20 +257,21 @@ func SortRows(rows []Row, by string) error {
 // Summary is a period-level roll-up used by `report --summary`. Part of the
 // GUI's JSON contract.
 type Summary struct {
-	FirstDay        string  `json:"first_day"`
-	LastDay         string  `json:"last_day"`
-	ActiveDays      int     `json:"active_days"`
-	Records         int     `json:"records"`
-	PromptTokens    int64   `json:"prompt_tokens"`
-	OutputTokens    int64   `json:"output_tokens"`
-	ThoughtsTokens  int64   `json:"thoughts_tokens"`
-	CachedTokens    int64   `json:"cached_tokens"`
-	TotalTokens     int64   `json:"total_tokens"`
-	TotalUSD        float64 `json:"total_usd"`
-	DailyAvgUSD     float64 `json:"daily_avg_usd"`
-	PeakDay         string  `json:"peak_day"`
-	PeakUSD         float64 `json:"peak_usd"`
-	Projection30USD float64 `json:"projection_30d_usd"`
+	FirstDay         string  `json:"first_day"`
+	LastDay          string  `json:"last_day"`
+	ActiveDays       int     `json:"active_days"`
+	Records          int     `json:"records"`
+	PromptTokens     int64   `json:"prompt_tokens"`
+	OutputTokens     int64   `json:"output_tokens"`
+	ThoughtsTokens   int64   `json:"thoughts_tokens"`
+	CachedTokens     int64   `json:"cached_tokens"`
+	ToolPromptTokens int64   `json:"tool_prompt_tokens"`
+	TotalTokens      int64   `json:"total_tokens"`
+	TotalUSD         float64 `json:"total_usd"`
+	DailyAvgUSD      float64 `json:"daily_avg_usd"`
+	PeakDay          string  `json:"peak_day"`
+	PeakUSD          float64 `json:"peak_usd"`
+	Projection30USD  float64 `json:"projection_30d_usd"`
 
 	// UnpricedRecords counts the records in the period that carry tokens on a
 	// billable model yet are stored at $0 — the trace a model leaves when it is
@@ -315,6 +318,7 @@ func Summarize(recs []model.PricedRecord, loc *time.Location) Summary {
 		s.OutputTokens += r.OutputTokens
 		s.ThoughtsTokens += r.ThoughtsTokens
 		s.CachedTokens += r.CachedTokens
+		s.ToolPromptTokens += r.ToolPromptTokens
 		s.TotalTokens += r.TotalTokens
 		s.TotalUSD += r.CostUSD
 		s.PartialRecords += r.PartialRecords
