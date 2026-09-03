@@ -109,12 +109,15 @@ Vertex AI の **global** エンドポイントにおける USD / 100 万トー�
 
 ```
 (prompt − cached) × input  +  cached × input × 0.1  +  tool prompt × input  +  (output + thoughts) × output
-+ $0.035（web_search の場合。Google 検索グラウンディング $35 / 1,000 件）
++ $0.014（web_search の場合。Google 検索グラウンディング $14 / 1,000 クエリ）
 × 1.1（セッションの location が "global" 以外の場合）
 ```
 
 キャッシュ保存料（明示キャッシュ）やバッチ / 優先度ティアは対象外です（gem-agent は
-使いません）。
+使いません）。グラウンディングは「グラウンディング クエリ」単位の課金で、1 回の
+プロンプトが複数クエリを発行することがあります。本ツールは `web_search` 1 回につき
+1 クエリ分を加算するので、この行は下限です。Gemini 3 系で合算される月 5,000 クエリの
+無料枠も対象外です（請求額ではなく定価換算のため）。
 
 単価表に無いモデルは **$0** になり、それをあらゆる面で明示します: `ingest` /
 `reprice` の stderr 警告、`report --summary` の `unpriced_records`（モデル別）、
@@ -127,7 +130,7 @@ output_per_mtok = 5.0
 ```
 
 書いたフィールドだけが上書きされ、残りは継承します（キャッシュ倍率 0.1、
-グラウンディング $0.035、非 global 1.1）。全フィールドは
+グラウンディング $0.014、非 global 1.1）。全フィールドは
 [config.example.toml](config.example.toml) を参照。
 
 ## 設定

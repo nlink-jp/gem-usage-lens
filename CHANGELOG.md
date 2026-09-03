@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Grounding with Google Search is charged at **$14 per 1,000 Grounding
+  Queries** (was $35 per 1,000). The $35 figure is the Gemini 2.x row of the
+  pricing page; the Gemini 3 row, which every model in this table belongs
+  to, says $14 with 5,000 queries per month at no charge. The free tier is
+  not modelled (the cost is a list-price equivalent) and one charge per
+  `web_search` call remains a lower bound, since a prompt may issue more
+  than one query. Run `reprice` to apply the new rate to stored history
 - Rate table verification date is 2026-09-03
 
 ## [0.1.2] - 2026-09-03

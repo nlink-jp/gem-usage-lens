@@ -11,7 +11,7 @@ import (
 func near(a, b float64) bool { return math.Abs(a-b) < 1e-9 }
 
 // The four accounting rules, pinned one at a time against gemini-3.7-flash's
-// built-in rates ($0.75 in / $3.75 out / cache 0.1× / grounding $0.035 /
+// built-in rates ($0.75 in / $3.75 out / cache 0.1× / grounding $0.014 /
 // non-global 1.1×).
 func TestComputeRules(t *testing.T) {
 	r, ok := pricing.Default().Lookup("gemini-3.7-flash")
@@ -35,9 +35,9 @@ func TestComputeRules(t *testing.T) {
 	if got := Compute(model.Usage{Prompt: 1_000_000, Cached: 500_000, Total: 1_000_000}, r, model.SourceMain, "global"); !near(got, 0.375+0.0375) {
 		t.Fatalf("half cached: %v", got)
 	}
-	// Grounding: a web_search call adds $0.035 on top of its tokens.
+	// Grounding: a web_search call adds $0.014 on top of its tokens.
 	base := Compute(model.Usage{Prompt: 47, Output: 617, Total: 664}, r, model.SourceMain, "global")
-	if got := Compute(model.Usage{Prompt: 47, Output: 617, Total: 664}, r, model.SourceWebSearch, "global"); !near(got, base+0.035) {
+	if got := Compute(model.Usage{Prompt: 47, Output: 617, Total: 664}, r, model.SourceWebSearch, "global"); !near(got, base+0.014) {
 		t.Fatalf("grounding: %v vs base %v", got, base)
 	}
 	// Tool results fed back as input bill at the input price, never cached.

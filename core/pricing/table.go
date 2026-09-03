@@ -18,6 +18,9 @@ type Rates struct {
 	// GroundingPerReq is the per-request charge for Grounding with Google
 	// Search, added once per web_search call. It is invisible in the token
 	// counts, which is why it is a separate field (gem-agent ADR-0057 lesson).
+	// The page bills per Grounding *Query* and one prompt may issue several,
+	// so one charge per call is a lower bound; the 5,000 free queries per
+	// month are not modelled (list price, not the invoice).
 	GroundingPerReq float64 `json:"grounding_per_req"`
 
 	// NonGlobalMultiplier scales the whole cost when the session billed
@@ -33,7 +36,7 @@ type Table map[string]Rates
 // Standard modifiers, from the Vertex AI pricing page (see VerifiedOn).
 const (
 	cacheReadMult       = 0.10
-	groundingPerReq     = 35.0 / 1000 // "$35 per 1,000 grounding prompts"
+	groundingPerReq     = 14.0 / 1000 // "$14 per 1,000 Grounding Queries" (Gemini 3 row; the $35 row is Gemini 2.x)
 	nonGlobalMultiplier = 1.10
 )
 

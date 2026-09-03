@@ -117,12 +117,16 @@ the official pricing page and stamped with the date they were verified
 
 ```
 (prompt − cached) × input  +  cached × input × 0.1  +  tool prompt × input  +  (output + thoughts) × output
-+ $0.035 when the call is a web_search (Grounding with Google Search, $35 / 1,000)
++ $0.014 when the call is a web_search (Grounding with Google Search, $14 / 1,000 Grounding Queries)
 × 1.1 when the session's location is not "global"
 ```
 
 Cache storage charges (explicit caching) and batch / priority tiers are not
-modelled — gem-agent uses neither.
+modelled — gem-agent uses neither. Grounding is billed per Grounding Query and
+one prompt may issue several; the lens charges once per `web_search` call, so
+that line is a lower bound. The 5,000 Grounding Queries per month at no charge
+(aggregated across Gemini 3 models) are not modelled either — the figure is the
+list price, not the invoice.
 
 A model missing from the table costs **$0**, and every surface says so:
 `ingest` and `reprice` warn on stderr, `report --summary` counts
@@ -136,7 +140,7 @@ output_per_mtok = 5.0
 ```
 
 Only the fields you set are overridden; the rest inherit (cache multiplier 0.1,
-grounding $0.035, non-global 1.1). See
+grounding $0.014, non-global 1.1). See
 [config.example.toml](config.example.toml) for every field.
 
 ## Configuration

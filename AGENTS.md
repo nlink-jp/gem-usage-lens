@@ -88,6 +88,11 @@ docs/{en,ja}/           RFP (canonical design)
   (pre-0057 header) is treated as global, not surcharged.
 - **Grounding** is a per-request charge invisible in tokens: added once per
   `source=web_search` record. `web_fetch` (URL context) has no extra charge.
+  The rate is the page's **Gemini 3** row ($14 per 1,000 Grounding Queries);
+  the $35 row on the same page is Gemini 2.x — read the section heading, not
+  the first "Grounding with Google Search" cell. Billing is per query and one
+  prompt may issue several, so per-call is a lower bound; the 5,000 free
+  queries per month are not modelled (list price, not invoice).
 - **A model missing from the table costs $0, silently at the engine — never
   silently at the surface.** `ingest` / `reprice` warn on stderr;
   `report --summary` derives `unpriced_records` / `unpriced_models` from the

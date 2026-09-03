@@ -28,8 +28,9 @@ func TestDefaultTableAgainstPricingPage(t *testing.T) {
 			t.Fatalf("%s: %v/%v want %v/%v", m, r.InputPerMTok, r.OutputPerMTok, io[0], io[1])
 		}
 		// Every Gemini 3 row on the page prices cached input at 0.1× input and
-		// non-global at 1.1×; grounding is $35 per 1,000 prompts.
-		if r.CacheReadMultiplier != 0.1 || r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.035 {
+		// non-global at 1.1×; grounding is $14 per 1,000 Grounding Queries
+		// (the Gemini 3 row — the $35 row on the page belongs to Gemini 2.x).
+		if r.CacheReadMultiplier != 0.1 || r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.014 {
 			t.Fatalf("%s modifiers: %+v", m, r)
 		}
 	}
@@ -59,7 +60,7 @@ func TestLookupNormalizes(t *testing.T) {
 
 func TestStandardRatesCarryModifiers(t *testing.T) {
 	r := StandardRates(2, 8)
-	if r.InputPerMTok != 2 || r.OutputPerMTok != 8 || r.CacheReadMultiplier != 0.1 || r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.035 {
+	if r.InputPerMTok != 2 || r.OutputPerMTok != 8 || r.CacheReadMultiplier != 0.1 || r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.014 {
 		t.Fatalf("%+v", r)
 	}
 }

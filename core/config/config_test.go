@@ -60,11 +60,11 @@ cache_read_multiplier = 0.25
 	}
 	tbl := cfg.PricingTable(pricing.Default())
 	r := tbl["gemini-3.7-flash"]
-	if r.InputPerMTok != 1.5 || r.OutputPerMTok != 3.75 || r.CacheReadMultiplier != 0.1 || r.GroundingPerReq != 0.035 || r.NonGlobalMultiplier != 1.1 {
+	if r.InputPerMTok != 1.5 || r.OutputPerMTok != 3.75 || r.CacheReadMultiplier != 0.1 || r.GroundingPerReq != 0.014 || r.NonGlobalMultiplier != 1.1 {
 		t.Fatalf("partial override must inherit the rest: %+v", r)
 	}
 	n := tbl["gemini-9"]
-	if n.InputPerMTok != 2 || n.OutputPerMTok != 8 || n.CacheReadMultiplier != 0.25 || n.NonGlobalMultiplier != 1.1 || n.GroundingPerReq != 0.035 {
+	if n.InputPerMTok != 2 || n.OutputPerMTok != 8 || n.CacheReadMultiplier != 0.25 || n.NonGlobalMultiplier != 1.1 || n.GroundingPerReq != 0.014 {
 		t.Fatalf("new model must start from the standard modifiers: %+v", n)
 	}
 	if got := cfg.OverriddenModels(); len(got) != 2 || got[0] != "gemini-3.7-flash" || got[1] != "gemini-9" {

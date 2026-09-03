@@ -26,7 +26,7 @@
 #
 # Every field is optional and INHERITS when omitted — for a model the built-in
 # table knows, from that entry; for one it doesn't, from the standard
-# modifiers (cache read 0.1x, grounding $0.035/request, non-global 1.1x). So
+# modifiers (cache read 0.1x, grounding $0.014/request, non-global 1.1x). So
 # overriding one price leaves the rest of the entry intact.
 #
 # A price change affects newly ingested records only, because ingest is
@@ -50,7 +50,7 @@
 # input_per_mtok        = 0.75    # prompt tokens not served from cache
 # output_per_mtok       = 3.75    # answer AND thinking tokens
 # cache_read_multiplier = 0.1     # cached prompt token = input price × this
-# grounding_per_req     = 0.035   # added once per web_search call ($35 / 1,000)
+# grounding_per_req     = 0.014   # added once per web_search call ($14 / 1,000 Grounding Queries)
 # non_global_multiplier = 1.1     # applied when the session's location is not "global"
 
 [budget]
