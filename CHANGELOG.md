@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `gemini-3.8-flash` (released 2026-09-02) in the built-in rate table:
   global $0.75 / $3.75 per 1M tokens, cached input $0.075 — the same
   introductory price as 3.7 / 3.6 Flash through 2026-12-31. As before, the
-  scheduled 2027 price is not pre-written; it lands at a later sync.
+  scheduled 2027 price is not pre-written; it lands at a later sync
 
 ### Changed
 

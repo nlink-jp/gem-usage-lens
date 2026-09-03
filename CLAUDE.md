@@ -54,3 +54,7 @@ make vet        # host + GOOS=windows + GOOS=linux
 
 - [`docs/ja/gem-usage-lens-rfp.ja.md`](docs/ja/gem-usage-lens-rfp.ja.md) (primary)
 - [`docs/en/gem-usage-lens-rfp.md`](docs/en/gem-usage-lens-rfp.md)
+
+The RFPs are a dated record (2026-09-02). Their price figures — including
+"Vertex grounding is $35 per 1,000" — are superseded; `core/pricing/table.go`
+and CHANGELOG.md are current.

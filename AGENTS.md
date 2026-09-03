@@ -43,7 +43,7 @@ core/
   ingest/               collect → price → store [tested]
   config/               strict TOML: [sources] [pricing.models] [budget] [tested]
   platform/             sessions root, config search paths, data dir, launchd [tested]
-docs/{en,ja}/           RFP (canonical design)
+docs/{en,ja}/           RFP (canonical design; a dated record — its price figures are superseded by core/pricing + CHANGELOG)
 ```
 
 ## Conventions & deliberate choices (gotchas)
