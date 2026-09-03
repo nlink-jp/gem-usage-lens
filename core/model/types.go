@@ -18,6 +18,7 @@ const (
 	SourceWebSearch     Source = "web_search"
 	SourceWebFetch      Source = "web_fetch"
 	SourceFileSearch    Source = "agentic_file_search"
+	SourceRiskbookLearn Source = "riskbook_learn" // gem-agent ADR-0066 (the /riskbook learn draft call)
 )
 
 // Billable reports whether a model id can carry a cost — i.e. whether its
@@ -49,11 +50,11 @@ type Usage struct {
 	Cached   int64
 	// ToolPrompt is the API's toolUsePromptTokenCount: the results of built-in
 	// tool executions (Google Search grounding, URL context) fed back to the
-	// model as input. Billed as input, never cached. gem-agent does not write
-	// this bucket (ADR-0057 predates it), but the API defines total as
-	// prompt + candidates + tool_use_prompt + thoughts, so a record whose
-	// total exceeds the three written buckets carries the remainder here —
-	// see WithDerivedToolPrompt.
+	// model as input. Billed as input, never cached. gem-agent writes it as
+	// `tool_prompt` since ADR-0066 (v0.62.0); a transcript written before
+	// that omits the key, and since the API defines total as
+	// prompt + candidates + tool_use_prompt + thoughts, the remainder over
+	// the three written buckets is this bucket — see WithDerivedToolPrompt.
 	ToolPrompt int64
 	Total      int64
 }
@@ -69,9 +70,13 @@ func (u Usage) ChecksumOK() bool {
 // WithDerivedToolPrompt fills ToolPrompt from the checksum remainder when the
 // record did not carry the bucket: total − (prompt + output + thoughts),
 // when positive. The API's own definition of total makes this exact, not a
-// guess — tool-use prompt tokens are the only bucket a transcript written by
-// gem-agent omits. A total *below* the written buckets is left alone and
+// guess — tool-use prompt tokens are the only bucket a pre-ADR-0066
+// transcript omits. A total *below* the written buckets is left alone and
 // keeps failing the checksum: that is a misread, not a missing bucket.
+//
+// The caller decides whether the bucket was carried (the key's presence,
+// not its value): a record that says tool_prompt:0 and does not balance is
+// a broken record, not a missing bucket, and must not come here.
 func (u Usage) WithDerivedToolPrompt() Usage {
 	if u.ToolPrompt != 0 || u.Total == 0 {
 		return u

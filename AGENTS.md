@@ -53,7 +53,7 @@ docs/{en,ja}/           RFP (canonical design)
   (subtract it, never add it); `prompt + output + thoughts + tool_prompt ==
   total` is the checksum. `cost_test.go` pins each rule separately. If the sum
   ever fails on real data, this build misreads the transcript — `verify` exits 1.
-- **`tool_prompt` is the bucket gem-agent does not write.** The API defines
+- **`tool_prompt` is the bucket gem-agent writes only since v0.62.0 (ADR-0066).** The API defines
   `totalTokenCount` as prompt + candidates + tool_use_prompt + thoughts
   (genai `GenerateContentResponseUsageMetadata`); `toolUsePromptTokenCount`
   is the results of built-in tools (search grounding, URL context) fed back

@@ -76,8 +76,9 @@ web_search            5        257       0         2968    1947      5172      $
 - **CACHED** は PROMPT のうちキャッシュから供給された分（内数。加算ではない）。
 - **THOUGHTS** は思考トークン。出力単価で課金されます。
 - **TOOL** は `toolUsePromptTokenCount`: 組み込みツール（検索グラウンディング・URL
-  context）の結果がモデルへ入力として戻された分。gem-agent はこのバケットを書きませんが
-  API の `total` には含まれるので、`gem-usage-lens` が残差として導出し入力単価で課金します。
+  context）の結果がモデルへ入力として戻された分で、入力単価で課金されます。gem-agent は
+  v0.62.0 から `tool_prompt` として書きます。それ以前の transcript にはキーが無いので、
+  `gem-usage-lens` が `total` の残差として導出します（`verify` では `TOOL-DERIVED`）。
 - **TOTAL** は prompt + output + thoughts + tool prompt = 課金対象トークン数。
 - `*` は gem-agent ADR-0057（2026-08-30）以前の transcript 由来のレコードを含む行。
   当時のファイルは risk / compaction の消費を記録していないので、その合計は下限値です。

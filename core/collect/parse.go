@@ -68,7 +68,11 @@ type rawUsage struct {
 	Output     int64  `json:"output"`
 	Thoughts   int64  `json:"thoughts"`
 	Cached     int64  `json:"cached"`
-	ToolPrompt int64  `json:"tool_prompt"` // not written by gem-agent yet; read when it is
+	// ToolPrompt is a pointer on purpose (gem-agent ADR-0066 §1): the key is
+	// written always from v0.62.0, zero included, so its ABSENCE is the one
+	// signal that the record predates the bucket and the remainder should be
+	// derived. A present zero is a measured zero and is taken as written.
+	ToolPrompt *int64 `json:"tool_prompt"`
 	Total      int64  `json:"total"`
 }
 
@@ -228,8 +232,10 @@ func parseLine(line []byte, hdr Header, relKey, sessionID, host string, lineStar
 		return model.UsageRecord{}, false
 	}
 
-	usage := model.Usage{Prompt: u.Prompt, Output: u.Output, Thoughts: u.Thoughts, Cached: u.Cached, ToolPrompt: u.ToolPrompt, Total: u.Total}
-	if derived := usage.WithDerivedToolPrompt(); derived.ToolPrompt != usage.ToolPrompt {
+	usage := model.Usage{Prompt: u.Prompt, Output: u.Output, Thoughts: u.Thoughts, Cached: u.Cached, Total: u.Total}
+	if u.ToolPrompt != nil {
+		usage.ToolPrompt = *u.ToolPrompt // written by gem-agent: trust it, even at zero
+	} else if derived := usage.WithDerivedToolPrompt(); derived.ToolPrompt != usage.ToolPrompt {
 		usage = derived
 		st.ToolPromptDerived++
 	}

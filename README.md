@@ -80,9 +80,10 @@ web_search            5        257       0         2968    1947      5172      $
 - **CACHED** is the share of PROMPT served from cache — not an addition.
 - **THOUGHTS** are thinking tokens; they bill at the output price.
 - **TOOL** is `toolUsePromptTokenCount`: the results of built-in tools (search
-  grounding, URL context) fed back to the model as input. gem-agent does not
-  write this bucket, but the API's `total` includes it, so `gem-usage-lens`
-  derives it as the remainder and bills it as input.
+  grounding, URL context) fed back to the model as input, billed as input.
+  gem-agent writes it as `tool_prompt` since v0.62.0; a transcript written
+  before that omits the key, and `gem-usage-lens` derives it as the remainder
+  of `total` (shown as `TOOL-DERIVED` by `verify`).
 - **TOTAL** is prompt + output + thoughts + tool prompt, the billed count.
 - A `*` marks buckets containing records from transcripts written before
   gem-agent ADR-0057 (2026-08-30). Those files never recorded risk and

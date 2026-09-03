@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-03
+
+### Fixed
+
+- The `tool_prompt` bucket is derived only when the key is **absent** from
+  the record (a transcript written before gem-agent ADR-0066 / v0.62.0).
+  A present `tool_prompt` is taken as written, zero included — so a
+  record that says zero and does not balance is counted as `CHECKSUM-NG`,
+  not silently re-labelled `TOOL-DERIVED`. Previously the key was read as a
+  plain integer and an explicit zero was indistinguishable from a missing
+  key
+- `riskbook_learn` (gem-agent's `/riskbook learn` draft call, recorded
+  since v0.62.0) joins the known sources
+
 ## [0.1.1] - 2026-09-03
 
 ### Fixed

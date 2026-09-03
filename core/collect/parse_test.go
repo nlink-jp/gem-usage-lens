@@ -118,8 +118,8 @@ func TestParseChecksumMismatchCounted(t *testing.T) {
 }
 
 // A web_fetch / web_search call carries the tool's results back to the model
-// as toolUsePromptTokenCount, which the API adds to total but gem-agent does
-// not write. The remainder is that bucket — exact, not a guess.
+// as toolUsePromptTokenCount, which the API adds to total but a pre-ADR-0066
+// gem-agent did not write. The remainder is that bucket — exact, not a guess.
 func TestParseDerivesToolPromptFromTotal(t *testing.T) {
 	lines := header +
 		`{"ts":"2026-09-01T08:52:29+09:00","kind":"usage","data":{"source":"web_fetch","model":"gemini-3.5-flash-lite","prompt":1200,"output":900,"thoughts":40,"cached":0,"total":9140}}` + "\n" +
@@ -135,9 +135,35 @@ func TestParseDerivesToolPromptFromTotal(t *testing.T) {
 	if recs[0].Usage.ToolPrompt != 7000 || !recs[0].Usage.ChecksumOK() || recs[0].Usage.BilledTokens() != 9140 {
 		t.Fatalf("derived: %+v", recs[0].Usage)
 	}
-	// An explicit tool_prompt (a future gem-agent) is taken as written, not re-derived.
+	// An explicit tool_prompt (gem-agent ≥ v0.62.0) is taken as written, not re-derived.
 	if recs[1].Usage.ToolPrompt != 7000 || !recs[1].Usage.ChecksumOK() {
 		t.Fatalf("explicit: %+v", recs[1].Usage)
+	}
+}
+
+// gem-agent ADR-0066 §1: the key is written always, zero included, so its
+// PRESENCE says the bucket was measured. A record that says tool_prompt:0
+// and does not balance is a broken record — it must be counted as a
+// checksum mismatch, not silently re-labelled "derived". Before the key was
+// read as a plain int64, absent and zero were the same thing and this
+// record passed as derived.
+func TestParseTrustsAnExplicitZeroToolPrompt(t *testing.T) {
+	lines := header +
+		`{"ts":"2026-09-03T00:00:01+09:00","kind":"usage","data":{"source":"web_fetch","model":"gemini-3.5-flash-lite","prompt":186,"output":430,"thoughts":0,"cached":0,"tool_prompt":0,"total":1707}}` + "\n" +
+		`{"ts":"2026-09-03T00:00:02+09:00","kind":"usage","data":{"source":"main","model":"gemini-3.7-flash","prompt":57754,"output":57,"thoughts":165,"cached":0,"tool_prompt":0,"total":57976}}` + "\n"
+	p := writeTemp(t, "s.jsonl", lines)
+	recs, st, err := ParseFile(p, "s.jsonl", "h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(recs) != 2 || st.ToolPromptDerived != 0 || st.ChecksumMismatch != 1 {
+		t.Fatalf("recs=%d stats=%+v", len(recs), st)
+	}
+	if recs[0].Usage.ToolPrompt != 0 || recs[0].Usage.ChecksumOK() {
+		t.Fatalf("an explicit zero that does not balance was re-derived: %+v", recs[0].Usage)
+	}
+	if !recs[1].Usage.ChecksumOK() || recs[1].Source != model.SourceMain {
+		t.Fatalf("a balanced explicit zero must pass: %+v", recs[1])
 	}
 }
 
