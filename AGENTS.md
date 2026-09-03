@@ -81,7 +81,7 @@ docs/{en,ja}/           RFP (canonical design)
   `cache_read_multiplier`, `grounding_per_req`, `non_global_multiplier` sit on
   `Rates`; the engine reads the record's model's values. `VerifiedOn` is the
   date the table was checked against the pricing page, and the table carries
-  **no scheduled future prices** (the page lists 2027 prices for 3.7 Flash —
+  **no scheduled future prices** (the page lists 2027 prices for 3.8 / 3.7 / 3.6 Flash —
   re-check at the next sync, don't pre-write). Tiered models (3.1 Pro) are
   deliberately absent: a flat rate would under-count long prompts.
 - **Region**: header `location` other than `global` → ×1.1. An empty location

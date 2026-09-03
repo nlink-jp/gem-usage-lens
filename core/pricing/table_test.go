@@ -7,6 +7,7 @@ func TestDefaultTableAgainstPricingPage(t *testing.T) {
 	// verified on VerifiedOn. If a sync changes one of these, change the
 	// expectation deliberately and bump VerifiedOn.
 	want := map[string][2]float64{
+		"gemini-3.8-flash":       {0.75, 3.75},
 		"gemini-3.7-flash":       {0.75, 3.75},
 		"gemini-3.6-flash":       {0.75, 3.75},
 		"gemini-3.5-flash":       {1.50, 9.00},

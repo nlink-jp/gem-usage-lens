@@ -43,7 +43,7 @@ const (
 // so a reader can judge how stale the table may be. The page also lists
 // prices scheduled for a later date; those are deliberately not written here
 // — a scheduled change is re-checked at the next sync, not assumed.
-const VerifiedOn = "2026-09-02"
+const VerifiedOn = "2026-09-03"
 
 // StandardRates returns a Rates for the given base prices with the standard
 // modifiers. It is the starting point for a model defined purely in the
@@ -72,6 +72,7 @@ func rates(input, output float64) Rates {
 // them flat would silently under-count long prompts.
 func Default() Table {
 	return Table{
+		"gemini-3.8-flash":       rates(0.75, 3.75),
 		"gemini-3.7-flash":       rates(0.75, 3.75),
 		"gemini-3.6-flash":       rates(0.75, 3.75),
 		"gemini-3.5-flash":       rates(1.50, 9.00),
