@@ -62,12 +62,12 @@ type rawHeader struct {
 // records (summary_usage etc.), which carry prompt/output and sometimes a
 // model but never thoughts/cached/total.
 type rawUsage struct {
-	Source     string `json:"source"`
-	Model      string `json:"model"`
-	Prompt     int64  `json:"prompt"`
-	Output     int64  `json:"output"`
-	Thoughts   int64  `json:"thoughts"`
-	Cached     int64  `json:"cached"`
+	Source   string `json:"source"`
+	Model    string `json:"model"`
+	Prompt   int64  `json:"prompt"`
+	Output   int64  `json:"output"`
+	Thoughts int64  `json:"thoughts"`
+	Cached   int64  `json:"cached"`
 	// ToolPrompt is a pointer on purpose (gem-agent ADR-0066 §1): the key is
 	// written always from v0.62.0, zero included, so its ABSENCE is the one
 	// signal that the record predates the bucket and the remainder should be
