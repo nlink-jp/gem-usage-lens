@@ -57,4 +57,6 @@ make vet        # host + GOOS=windows + GOOS=linux
 
 The RFPs are a dated record (2026-09-02). Their price figures — including
 "Vertex grounding is $35 per 1,000" — are superseded; `core/pricing/table.go`
-and CHANGELOG.md are current.
+and CHANGELOG.md are current. So is their `<YYYYMMDD-HHMMSS>.jsonl` file name:
+gem-agent ADR-0071 (v0.66.0) names sessions by UUID and opens a new transcript
+on `/clear`; the parser never depended on the name.

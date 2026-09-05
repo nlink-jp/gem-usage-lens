@@ -161,3 +161,52 @@ func TestSummarizeCountsChecksumMismatches(t *testing.T) {
 		t.Fatalf("%+v", s)
 	}
 }
+
+func TestRowsCarryFirstAndLastRecord(t *testing.T) {
+	rows, _ := Aggregate(sample(), []Dimension{BySession}, time.UTC)
+	if len(rows) != 2 || rows[0].Key != "s1" {
+		t.Fatalf("%+v", rows)
+	}
+	if rows[0].FirstRecord != "2026-09-01T10:00:00Z" || rows[0].LastRecord != "2026-09-01T11:00:00Z" {
+		t.Fatalf("s1 bounds: %q %q", rows[0].FirstRecord, rows[0].LastRecord)
+	}
+	if rows[1].FirstRecord != "2026-09-03T09:00:00Z" || rows[1].LastRecord != rows[1].FirstRecord {
+		t.Fatalf("s2 bounds: %q %q", rows[1].FirstRecord, rows[1].LastRecord)
+	}
+	// Bounds follow the aggregation location, whole seconds.
+	jst := time.FixedZone("JST", 9*3600)
+	rows, _ = Aggregate(sample(), []Dimension{BySession}, jst)
+	if rows[0].FirstRecord != "2026-09-01T19:00:00+09:00" {
+		t.Fatalf("in JST: %q", rows[0].FirstRecord)
+	}
+	// A record without a timestamp leaves the bounds empty rather than 0001.
+	none := rec("", "s3", "m", model.SourceMain, model.Usage{Prompt: 1, Total: 1}, 0, false)
+	rows, _ = Aggregate([]model.PricedRecord{none}, []Dimension{BySession}, time.UTC)
+	if rows[0].FirstRecord != "" || rows[0].LastRecord != "" {
+		t.Fatalf("no timestamp: %+v", rows[0])
+	}
+}
+
+func TestSortRowsByTime(t *testing.T) {
+	// A UUID id (gem-agent ADR-0071) sorts by key after every timestamp id
+	// and in hex order among UUIDs; "time" restores chronological order.
+	recs := []model.PricedRecord{
+		rec("2026-09-05T03:00:00Z", "f5f26494-4547-486a-939e-a52e203a038b", "m", model.SourceMain, model.Usage{Prompt: 1, Total: 1}, 0, false),
+		rec("2026-09-05T01:00:00Z", "20260905-100000", "m", model.SourceMain, model.Usage{Prompt: 1, Total: 1}, 0, false),
+		rec("2026-09-05T02:00:00Z", "2ebb723d-0712-4fcc-bf4d-7745d637e70a", "m", model.SourceMain, model.Usage{Prompt: 1, Total: 1}, 0, false),
+		rec("", "no-timestamp", "m", model.SourceMain, model.Usage{Prompt: 1, Total: 1}, 0, false),
+	}
+	rows, _ := Aggregate(recs, []Dimension{BySession}, time.UTC)
+	if err := SortRows(rows, "time"); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"20260905-100000", "2ebb723d-0712-4fcc-bf4d-7745d637e70a", "f5f26494-4547-486a-939e-a52e203a038b", "no-timestamp"}
+	for i, k := range want {
+		if rows[i].Key != k {
+			t.Fatalf("order: %v", rows)
+		}
+	}
+	if err := SortRows(rows, "key"); err != nil || rows[0].Key != "20260905-100000" || rows[1].Key != "2ebb723d-0712-4fcc-bf4d-7745d637e70a" {
+		t.Fatalf("key order kept: %v %v", err, rows)
+	}
+}

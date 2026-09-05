@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-09-05
+
+Follows gem-agent ADR-0071 (v0.66.0): session ids are UUID v4 and `/clear`
+opens a new transcript. The transcript layout, header and `usage` record are
+unchanged, so parsing and dedup needed no change (verified on 128 transcripts
+spanning v0.55–v0.68 with zero checksum mismatches); what broke was the
+`sessions` listing, whose id-ordered rows were chronological only because the
+old ids were timestamps.
+
+### Added
+
+- `first_record` / `last_record` on every row of `report --json` and
+  `sessions --json`: the bucket's earliest and latest model call (RFC 3339,
+  whole seconds, in the `--tz` location). Additive to the GUI contract
+- `--sort time` (ascending by first record) for `report` and `sessions`
+- `sessions` prints STARTED and LAST columns
+
+### Changed
+
+- `sessions` sorts by `time` by default (was `key`): UUID ids sorted after
+  every timestamp id and in hex order among themselves, and no longer said
+  when the session ran. `--sort key` is still available
+- A conversation `/clear`ed in gem-agent ≥ v0.66.0 shows as two session rows,
+  one per transcript, as in gem-agent's own listing
+
 ## [0.1.3] - 2026-09-03
 
 ### Added

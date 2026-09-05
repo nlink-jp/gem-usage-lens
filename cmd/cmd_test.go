@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nlink-jp/gem-usage-lens/core/aggregate"
 	"github.com/nlink-jp/gem-usage-lens/core/budget"
 	"github.com/nlink-jp/gem-usage-lens/core/config"
 )
@@ -130,5 +131,39 @@ func TestPrintBudgetMentionsEveryLine(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("missing %q in:\n%s", want, out.String())
 		}
+	}
+}
+
+func TestPrintReportTimeColumns(t *testing.T) {
+	rows := []aggregate.Row{
+		{Key: "2ebb723d-0712-4fcc-bf4d-7745d637e70a", Records: 2, TotalTokens: 10, CostUSD: 0.5, FirstRecord: "2026-09-05T03:50:12+09:00", LastRecord: "2026-09-05T04:10:00+09:00"},
+		{Key: "unknown", Records: 1},
+	}
+	var without, with bytes.Buffer
+	printReport(&without, rows, false)
+	printReport(&with, rows, true)
+	if strings.Contains(without.String(), "STARTED") {
+		t.Fatalf("report must not grow time columns:\n%s", without.String())
+	}
+	out := with.String()
+	for _, want := range []string{"STARTED", "LAST", "2026-09-05 03:50", "2026-09-05 04:10"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q:\n%s", want, out)
+		}
+	}
+	// The bounded row carries both stamps, the unbounded one two dashes,
+	// and TOTAL leaves the time cells empty while keeping its numbers.
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if n := len(strings.Fields(lines[1])); n != 13 { // key, 2×(date time), 8 numbers
+		t.Fatalf("%d fields in %q", n, lines[1])
+	}
+	if !strings.Contains(lines[2], "—") || strings.Count(lines[2], "—") != 2 {
+		t.Fatalf("unbounded row: %q", lines[2])
+	}
+	if !strings.HasPrefix(lines[3], "TOTAL") || !strings.HasSuffix(lines[3], "$0.5000") {
+		t.Fatalf("total row: %q", lines[3])
+	}
+	if tableTime("") != "—" || tableTime("garbage") != "garbage" {
+		t.Fatal("tableTime fallbacks")
 	}
 }

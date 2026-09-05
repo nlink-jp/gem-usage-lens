@@ -50,7 +50,7 @@ gem-usage-lens budget --limit-usd 100
 | `ingest` | 前回以降に追記されたバイトだけを読み、store へ upsert。いつ実行しても安全。 |
 | `report` | store を集計。`--since` / `--until` / `--group-by` / `--source` / `--model` / `--project` / `--sort` / `--top` / `--dense` / `--summary` / `--compare` / `--tz` / `--json`。 |
 | `budget` | 暦月予算の状態: 消費・残量・警告状態・ペース予測。`--limit-usd` / `--limit-tokens` / `--warn` / `--critical` / `--tz` / `--json`。 |
-| `sessions` | セッションごとに 1 行（`--sort cost --top 10`）。 |
+| `sessions` | セッションごとに 1 行。最初と最後のモデル呼び出し時刻つきで時系列順（既定 `--sort time`。大きい順は `--sort cost --top 10`）。 |
 | `models` | 単価表（検証日つき）と、config 由来のエントリ。 |
 | `reprice` | 単価変更後（config または新ビルド）に蓄積済みコストを再計算。`--dry-run` で確認。 |
 | `verify` | 全 transcript の会計チェックサム（`prompt + output + thoughts + tool prompt == total`）を検査し、gem-agent ADR-0057 以前のファイルを列挙。 |
@@ -153,7 +153,7 @@ store は macOS では `~/Library/Application Support/gem-usage-lens/usage.db`
 | 項目 | 値 |
 |------|-----|
 | sessions root | `$GEMAGENT_STATE_DIR/sessions`、無ければ `~/.local/state/gem-agent/sessions` |
-| ファイル | `**/*.jsonl`（1 セッション 1 ファイル。resume は同じファイルに追記） |
+| ファイル | `**/*.jsonl`（1 セッション 1 ファイル。resume は同じファイルに追記、`/clear` は新しいファイルを開く — gem-agent ADR-0071、v0.66.0） |
 | レコード | `{"kind":"usage","data":{"source","model","prompt","output","thoughts","cached","total"}}` と、ヘッダの `model` / `project` / `location` |
 
 レコードは（sessions root からの相対）ファイルパス + バイトオフセットで識別するので、
@@ -168,7 +168,9 @@ gem-agent v0.55（ADR-0057、2026-08-30）以前の transcript は main ルー�
 
 `report --json`、`report --summary --json`、`budget --json`、`sessions --json`、
 `models --json`、`verify --json` は安定した機械可読出力です（GUI は前 3 つを使用）。
-時刻は秒精度の RFC 3339 です。
+時刻は秒精度の RFC 3339 です。各行に `first_record` / `last_record`（その集計単位で
+最初・最後のモデル呼び出し時刻、`--tz` の地域）が付きます。セッション行ではそれが
+実行時刻です — gem-agent v0.66.0 以降のセッション ID は UUID で、開始時刻を含みません。
 
 ## ビルド
 

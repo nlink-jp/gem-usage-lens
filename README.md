@@ -54,7 +54,7 @@ gem-usage-lens budget --limit-usd 100
 | `ingest` | Read only the bytes appended since last time and upsert them into the store. Safe to run any time. |
 | `report` | Aggregate the store. `--since` / `--until` / `--group-by` / `--source` / `--model` / `--project` / `--sort` / `--top` / `--dense` / `--summary` / `--compare` / `--tz` / `--json`. |
 | `budget` | Calendar-month budget state: used, remaining, warning state, pace forecast. `--limit-usd` / `--limit-tokens` / `--warn` / `--critical` / `--tz` / `--json`. |
-| `sessions` | One row per session (`--sort cost --top 10`). |
+| `sessions` | One row per session with its first and last model call, in chronological order (`--sort time` is the default; `--sort cost --top 10` for the biggest). |
 | `models` | The rate table with its verification date, and which entries come from your config. |
 | `reprice` | Recompute stored costs after a rate change (config or a new build). `--dry-run` previews. |
 | `verify` | Check every transcript's accounting checksum (`prompt + output + thoughts + tool prompt == total`) and list files written before gem-agent ADR-0057. |
@@ -164,7 +164,7 @@ deleted by `ingest`, so history outlives the transcripts.
 | Item | Value |
 |------|-------|
 | Sessions root | `$GEMAGENT_STATE_DIR/sessions`, else `~/.local/state/gem-agent/sessions` |
-| Files | `**/*.jsonl` (one per session; a resume appends to the same file) |
+| Files | `**/*.jsonl` (one per session; a resume appends to the same file, `/clear` starts a new file — gem-agent ADR-0071, v0.66.0) |
 | Records | `{"kind":"usage","data":{"source","model","prompt","output","thoughts","cached","total"}}` and the session header's `model` / `project` / `location` |
 
 Records are keyed by file (relative to the sessions root) and byte offset, so
@@ -182,6 +182,10 @@ without `source` / `model`; those are filled from the header and flagged
 `report --json`, `report --summary --json`, `budget --json`, `sessions --json`,
 `models --json` and `verify --json` are stable machine-readable outputs; the
 GUI consumes the first three. Timestamps are RFC 3339 with whole seconds.
+Every row carries `first_record` / `last_record` (the bucket's earliest and
+latest model call, in the `--tz` location); for a session row that is when it
+ran, since a gem-agent session id is a UUID from v0.66.0 and no longer
+encodes the start time.
 
 ## Build
 

@@ -285,7 +285,7 @@ func runReport(args []string) error {
 	source := fs.String("source", "", "filter by call source (main|risk|compact|web_search|...)")
 	modelFilter := fs.String("model", "", "filter by model id (substring)")
 	projectFilter := fs.String("project", "", "filter by project path (substring)")
-	sortBy := fs.String("sort", "", "sort rows: key|cost|prompt|output|thoughts|cached|tokens|records")
+	sortBy := fs.String("sort", "", "sort rows: key|time|cost|prompt|output|thoughts|cached|tokens|records")
 	top := fs.Int("top", 0, "keep only the top N rows after sorting (0 = all)")
 	dense := fs.Bool("dense", false, "fill gaps in a time series with zero rows (single time group-by)")
 	summary := fs.Bool("summary", false, "print period summary stats instead of rows")
@@ -393,7 +393,7 @@ func runReport(args []string) error {
 	if *asJSON {
 		return printJSON(rows)
 	}
-	printReport(os.Stdout, rows)
+	printReport(os.Stdout, rows, false)
 	return nil
 }
 
@@ -528,13 +528,20 @@ func printComparison(w io.Writer, cur, prev []model.PricedRecord) {
 	fmt.Fprintln(w, "\ncurrent vs. the preceding equal-length period. "+notionalNote)
 }
 
-func printReport(w io.Writer, rows []aggregate.Row) {
+// printReport prints aggregated rows as a table. withTimes adds STARTED and
+// LAST columns (each row's first and last record, as `sessions` needs: a
+// UUID session id says nothing about when the session ran).
+func printReport(w io.Writer, rows []aggregate.Row, withTimes bool) {
 	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
 	var trec, tpartial int
 	var tprompt, tout, tthoughts, tcached, ttool, ttotal int64
 	var tcost float64
 
-	fmt.Fprintln(tw, "KEY\tRECORDS\tPROMPT\tCACHED\tOUTPUT\tTHOUGHTS\tTOOL\tTOTAL\tCOST(USD)")
+	times := ""
+	if withTimes {
+		times = "STARTED\tLAST\t"
+	}
+	fmt.Fprintln(tw, "KEY\t"+times+"RECORDS\tPROMPT\tCACHED\tOUTPUT\tTHOUGHTS\tTOOL\tTOTAL\tCOST(USD)")
 	for _, r := range rows {
 		trec += r.Records
 		tpartial += r.PartialRecords
@@ -549,14 +556,32 @@ func printReport(w io.Writer, rows []aggregate.Row) {
 		if r.PartialRecords > 0 {
 			mark = "*"
 		}
-		fmt.Fprintf(tw, "%s%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", r.Key, mark, r.Records, r.PromptTokens, r.CachedTokens, r.OutputTokens, r.ThoughtsTokens, r.ToolPromptTokens, r.TotalTokens, r.CostUSD)
+		if withTimes {
+			times = tableTime(r.FirstRecord) + "\t" + tableTime(r.LastRecord) + "\t"
+		}
+		fmt.Fprintf(tw, "%s%s\t%s%d\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", r.Key, mark, times, r.Records, r.PromptTokens, r.CachedTokens, r.OutputTokens, r.ThoughtsTokens, r.ToolPromptTokens, r.TotalTokens, r.CostUSD)
 	}
-	fmt.Fprintf(tw, "TOTAL\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", trec, tprompt, tcached, tout, tthoughts, ttool, ttotal, tcost)
+	if withTimes {
+		times = "\t\t"
+	}
+	fmt.Fprintf(tw, "TOTAL\t%s%d\t%d\t%d\t%d\t%d\t%d\t%d\t$%.4f\n", times, trec, tprompt, tcached, tout, tthoughts, ttool, ttotal, tcost)
 	tw.Flush()
 	if tpartial > 0 {
 		fmt.Fprintf(w, "\n* %d record(s) come from pre-ADR-0057 transcripts (risk/compaction spend never recorded) — those buckets are a lower bound.\n", tpartial)
 	}
 	fmt.Fprintln(w, "\nCACHED is the share of PROMPT served from cache (not an addition). THOUGHTS bill at the output price. TOOL is built-in tool results (search grounding, URL context) fed back as input. "+notionalNote)
+}
+
+// tableTime shortens a Row bound (RFC 3339) to minute precision for the
+// table; an empty bound (no timestamped record) prints as a dash.
+func tableTime(rfc3339 string) string {
+	if rfc3339 == "" {
+		return "—"
+	}
+	if t, err := time.Parse(time.RFC3339, rfc3339); err == nil {
+		return t.Format("2006-01-02 15:04")
+	}
+	return rfc3339
 }
 
 func printJSON(v any) error {
@@ -570,7 +595,7 @@ func printJSON(v any) error {
 func runSessions(args []string) error {
 	fs := flag.NewFlagSet("sessions", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "machine-readable JSON output")
-	sortBy := fs.String("sort", "key", "sort rows: key|cost|prompt|output|thoughts|cached|tokens|records")
+	sortBy := fs.String("sort", "time", "sort rows: time|key|cost|prompt|output|thoughts|cached|tokens|records")
 	top := fs.Int("top", 0, "keep only the top N rows after sorting (0 = all)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -598,7 +623,7 @@ func runSessions(args []string) error {
 	if *asJSON {
 		return printJSON(rows)
 	}
-	printReport(os.Stdout, rows)
+	printReport(os.Stdout, rows, true)
 	return nil
 }
 

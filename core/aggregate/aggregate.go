@@ -40,6 +40,23 @@ type Row struct {
 	// whose files never recorded risk/compaction spend: a bucket with any is
 	// a lower bound.
 	PartialRecords int `json:"partial_records"`
+	// FirstRecord / LastRecord bound the bucket's records in time (RFC 3339,
+	// whole seconds, in the aggregation location); empty when no record
+	// carried a timestamp. For a session row they are its start and last
+	// activity — since gem-agent ADR-0071 (v0.66.0) the session id is a UUID
+	// and no longer says when the session began.
+	FirstRecord string `json:"first_record,omitempty"`
+	LastRecord  string `json:"last_record,omitempty"`
+
+	first, last time.Time // the unformatted bounds, for SortRows "time"
+}
+
+// stamp formats a bound for the JSON contract: whole seconds, in loc.
+func stamp(t time.Time, loc *time.Location) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.In(loc).Truncate(time.Second).Format(time.RFC3339)
 }
 
 // Aggregate groups priced records by the given dimensions and sums tokens
@@ -70,6 +87,14 @@ func Aggregate(recs []model.PricedRecord, dims []Dimension, loc *time.Location) 
 		if r.Partial {
 			row.PartialRecords++
 		}
+		if !r.Timestamp.IsZero() {
+			if row.first.IsZero() || r.Timestamp.Before(row.first) {
+				row.first = r.Timestamp
+			}
+			if r.Timestamp.After(row.last) {
+				row.last = r.Timestamp
+			}
+		}
 	}
 
 	keys := make([]string, 0, len(byKey))
@@ -80,7 +105,9 @@ func Aggregate(recs []model.PricedRecord, dims []Dimension, loc *time.Location) 
 
 	out := make([]Row, 0, len(keys))
 	for _, k := range keys {
-		out = append(out, *byKey[k])
+		row := *byKey[k]
+		row.FirstRecord, row.LastRecord = stamp(row.first, loc), stamp(row.last, loc)
+		out = append(out, row)
 	}
 	return out, nil
 }
@@ -228,12 +255,26 @@ func DenseTimeRows(rows []Row, dim Dimension, start, end time.Time, loc *time.Lo
 	return out
 }
 
-// SortRows orders rows in place. "key" (default) sorts ascending by key; a
-// metric name sorts descending so the biggest contributors come first.
+// SortRows orders rows in place. "key" (default) sorts ascending by key;
+// "time" sorts ascending by each row's first record (rows without a
+// timestamp last, ties by key) — the chronological order `sessions` needs
+// now that a session id no longer sorts by start time; a metric name sorts
+// descending so the biggest contributors come first.
 func SortRows(rows []Row, by string) error {
 	switch by {
 	case "", "key":
 		sort.SliceStable(rows, func(i, j int) bool { return rows[i].Key < rows[j].Key })
+	case "time":
+		sort.SliceStable(rows, func(i, j int) bool {
+			a, b := rows[i].first, rows[j].first
+			switch {
+			case a.IsZero() != b.IsZero():
+				return b.IsZero()
+			case !a.Equal(b):
+				return a.Before(b)
+			}
+			return rows[i].Key < rows[j].Key
+		})
 	case "cost":
 		sort.SliceStable(rows, func(i, j int) bool { return rows[i].CostUSD > rows[j].CostUSD })
 	case "prompt":
@@ -249,7 +290,7 @@ func SortRows(rows []Row, by string) error {
 	case "records":
 		sort.SliceStable(rows, func(i, j int) bool { return rows[i].Records > rows[j].Records })
 	default:
-		return fmt.Errorf("unknown --sort %q (want key|cost|prompt|output|thoughts|cached|tokens|records)", by)
+		return fmt.Errorf("unknown --sort %q (want key|time|cost|prompt|output|thoughts|cached|tokens|records)", by)
 	}
 	return nil
 }

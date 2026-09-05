@@ -43,7 +43,7 @@ core/
   ingest/               collect → price → store [tested]
   config/               strict TOML: [sources] [pricing.models] [budget] [tested]
   platform/             sessions root, config search paths, data dir, launchd [tested]
-docs/{en,ja}/           RFP (canonical design; a dated record — its price figures are superseded by core/pricing + CHANGELOG)
+docs/{en,ja}/           RFP (canonical design; a dated record — its price figures are superseded by core/pricing + CHANGELOG, and its `<YYYYMMDD-HHMMSS>.jsonl` file names by gem-agent ADR-0071 UUIDs)
 ```
 
 ## Conventions & deliberate choices (gotchas)
@@ -116,7 +116,13 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
 - **The dedup key is root-relative.** Changing the sessions root (flag, config
   or `GEMAGENT_STATE_DIR`) re-keys every file and a fresh ingest would double
   count; the documented remedy is deleting `usage.db`. A session id + offset
-  key would be root-independent but ids are only unique per project dir.
+  key would be root-independent, but ids written before gem-agent v0.66.0
+  (timestamp form) are only unique per project dir; UUIDs (ADR-0071) are.
+- **A session id says nothing about time since gem-agent v0.66.0** (UUID v4,
+  ADR-0071), and `/clear` opens a new transcript, so one conversation can be
+  two session rows. `Row.FirstRecord` / `LastRecord` carry the bounds;
+  `sessions` sorts by `time` by default and prints STARTED / LAST. `report`
+  keeps `key` order (its time buckets sort by key already).
 - **One record is one model call, except `agentic_file_search`**, which
   gem-agent logs as a single summed record for its child rounds: cost is
   linear so the money is right, but `records` under-counts calls there.
@@ -129,7 +135,8 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   greps the flag). Pinned in `cmd_test.go`.
 - **JSON contract with gem-usage-lens-gui**: `Row` (report), `Summary`
   (report --summary), `budget.Status`. Change these in lockstep with the
-  GUI's `Models.swift`.
+  GUI's `Models.swift`. Adding a key is additive (Swift `Codable` ignores
+  unknown keys); renaming or removing one is not.
 
 ## Testing strategy
 
