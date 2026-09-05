@@ -1,6 +1,8 @@
 package aggregate
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -179,11 +181,40 @@ func TestRowsCarryFirstAndLastRecord(t *testing.T) {
 	if rows[0].FirstRecord != "2026-09-01T19:00:00+09:00" {
 		t.Fatalf("in JST: %q", rows[0].FirstRecord)
 	}
-	// A record without a timestamp leaves the bounds empty rather than 0001.
+	// A record without a timestamp leaves the bounds empty rather than 0001 —
+	// and present: the keys are written always (no omitempty).
 	none := rec("", "s3", "m", model.SourceMain, model.Usage{Prompt: 1, Total: 1}, 0, false)
 	rows, _ = Aggregate([]model.PricedRecord{none}, []Dimension{BySession}, time.UTC)
 	if rows[0].FirstRecord != "" || rows[0].LastRecord != "" {
 		t.Fatalf("no timestamp: %+v", rows[0])
+	}
+	b, _ := json.Marshal(rows[0])
+	if !strings.Contains(string(b), `"first_record":""`) || !strings.Contains(string(b), `"last_record":""`) {
+		t.Fatalf("keys must be present even when empty: %s", b)
+	}
+}
+
+func TestSortTimeRefusedWithDense(t *testing.T) {
+	// A dense series' filler rows carry no record, so "time" would sink
+	// them to the end of an otherwise chronological series.
+	if err := SortConflictsWithDense("time", true); err == nil {
+		t.Fatal("dense + time must be refused")
+	}
+	for _, by := range []string{"key", "cost", ""} {
+		if err := SortConflictsWithDense(by, true); err != nil {
+			t.Fatalf("%q with dense: %v", by, err)
+		}
+	}
+	if err := SortConflictsWithDense("time", false); err != nil {
+		t.Fatal("time without dense is fine")
+	}
+	rows, _ := Aggregate(sample(), []Dimension{ByDay}, time.UTC)
+	start, _ := time.Parse(time.RFC3339, "2026-09-01T00:00:00Z")
+	end, _ := time.Parse(time.RFC3339, "2026-09-03T00:00:00Z")
+	dense := DenseTimeRows(rows, ByDay, start, end, time.UTC)
+	_ = SortRows(dense, "time")
+	if dense[len(dense)-1].Key != "2026-09-02" {
+		t.Fatalf("the conflict the guard exists for: %v", dense)
 	}
 }
 

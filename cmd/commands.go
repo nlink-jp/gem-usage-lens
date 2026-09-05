@@ -285,7 +285,7 @@ func runReport(args []string) error {
 	source := fs.String("source", "", "filter by call source (main|risk|compact|web_search|...)")
 	modelFilter := fs.String("model", "", "filter by model id (substring)")
 	projectFilter := fs.String("project", "", "filter by project path (substring)")
-	sortBy := fs.String("sort", "", "sort rows: key|time|cost|prompt|output|thoughts|cached|tokens|records")
+	sortBy := fs.String("sort", "", "sort rows: "+aggregate.SortValues)
 	top := fs.Int("top", 0, "keep only the top N rows after sorting (0 = all)")
 	dense := fs.Bool("dense", false, "fill gaps in a time series with zero rows (single time group-by)")
 	summary := fs.Bool("summary", false, "print period summary stats instead of rows")
@@ -296,6 +296,9 @@ func runReport(args []string) error {
 		return err
 	}
 
+	if err := aggregate.SortConflictsWithDense(*sortBy, *dense); err != nil {
+		return err
+	}
 	loc, err := resolveTZ(*tz)
 	if err != nil {
 		return err
@@ -592,12 +595,21 @@ func printJSON(v any) error {
 
 // --- sessions ---
 
+// sessionsDefaultSort is chronological: a session id has been a UUID since
+// gem-agent v0.66.0 (ADR-0071), so key order is no longer time order.
+const sessionsDefaultSort = "time"
+
 func runSessions(args []string) error {
 	fs := flag.NewFlagSet("sessions", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "machine-readable JSON output")
-	sortBy := fs.String("sort", "time", "sort rows: time|key|cost|prompt|output|thoughts|cached|tokens|records")
-	top := fs.Int("top", 0, "keep only the top N rows after sorting (0 = all)")
+	sortBy := fs.String("sort", sessionsDefaultSort, "sort rows: "+aggregate.SortValues)
+	top := fs.Int("top", 0, "keep only the top N rows after sorting (0 = all; with the default time order that is the oldest N)")
+	tz := fs.String("tz", "local", "timezone for STARTED / LAST and first_record / last_record: local | utc | an IANA name")
 	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	loc, err := resolveTZ(*tz)
+	if err != nil {
 		return err
 	}
 	st, _, err := openStore()
@@ -610,7 +622,7 @@ func runSessions(args []string) error {
 	if err != nil {
 		return err
 	}
-	rows, err := aggregate.Aggregate(recs, []aggregate.Dimension{aggregate.BySession}, time.Local)
+	rows, err := aggregate.Aggregate(recs, []aggregate.Dimension{aggregate.BySession}, loc)
 	if err != nil {
 		return err
 	}

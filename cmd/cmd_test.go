@@ -134,6 +134,14 @@ func TestPrintBudgetMentionsEveryLine(t *testing.T) {
 	}
 }
 
+// The sessions listing is chronological by default: since gem-agent ADR-0071
+// a session id is a UUID, so the old key order is no longer time order.
+func TestSessionsDefaultSortIsTime(t *testing.T) {
+	if sessionsDefaultSort != "time" {
+		t.Fatalf("sessions default sort %q", sessionsDefaultSort)
+	}
+}
+
 func TestPrintReportTimeColumns(t *testing.T) {
 	rows := []aggregate.Row{
 		{Key: "2ebb723d-0712-4fcc-bf4d-7745d637e70a", Records: 2, TotalTokens: 10, CostUSD: 0.5, FirstRecord: "2026-09-05T03:50:12+09:00", LastRecord: "2026-09-05T04:10:00+09:00"},

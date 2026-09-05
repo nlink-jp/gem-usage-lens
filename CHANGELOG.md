@@ -20,9 +20,11 @@ old ids were timestamps.
 
 - `first_record` / `last_record` on every row of `report --json` and
   `sessions --json`: the bucket's earliest and latest model call (RFC 3339,
-  whole seconds, in the `--tz` location). Additive to the GUI contract
-- `--sort time` (ascending by first record) for `report` and `sessions`
-- `sessions` prints STARTED and LAST columns
+  whole seconds, in the `--tz` location; written always, `""` when no record
+  in the bucket had a timestamp). Additive to the GUI contract
+- `--sort time` (ascending by first record) for `report` and `sessions`;
+  refused together with `--dense`, whose filler rows have no record
+- `sessions` prints STARTED and LAST columns, and takes `--tz`
 
 ### Changed
 

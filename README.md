@@ -54,7 +54,7 @@ gem-usage-lens budget --limit-usd 100
 | `ingest` | Read only the bytes appended since last time and upsert them into the store. Safe to run any time. |
 | `report` | Aggregate the store. `--since` / `--until` / `--group-by` / `--source` / `--model` / `--project` / `--sort` / `--top` / `--dense` / `--summary` / `--compare` / `--tz` / `--json`. |
 | `budget` | Calendar-month budget state: used, remaining, warning state, pace forecast. `--limit-usd` / `--limit-tokens` / `--warn` / `--critical` / `--tz` / `--json`. |
-| `sessions` | One row per session with its first and last model call, in chronological order (`--sort time` is the default; `--sort cost --top 10` for the biggest). |
+| `sessions` | One row per session with its first and last model call, in chronological order (`--sort time` is the default, so `--top N` alone is the oldest N; `--sort cost --top 10` for the biggest). `--tz` / `--json`. |
 | `models` | The rate table with its verification date, and which entries come from your config. |
 | `reprice` | Recompute stored costs after a rate change (config or a new build). `--dry-run` previews. |
 | `verify` | Check every transcript's accounting checksum (`prompt + output + thoughts + tool prompt == total`) and list files written before gem-agent ADR-0057. |
@@ -183,9 +183,12 @@ without `source` / `model`; those are filled from the header and flagged
 `models --json` and `verify --json` are stable machine-readable outputs; the
 GUI consumes the first three. Timestamps are RFC 3339 with whole seconds.
 Every row carries `first_record` / `last_record` (the bucket's earliest and
-latest model call, in the `--tz` location); for a session row that is when it
-ran, since a gem-agent session id is a UUID from v0.66.0 and no longer
-encodes the start time.
+latest model call, in the `--tz` location; `""` when no record in the bucket
+had a timestamp, such as a `--dense` filler row); for a session row that is
+when it ran, since a gem-agent session id is a UUID from v0.66.0 and no
+longer encodes the start time. `--sort time` orders rows by `first_record`
+and is refused together with `--dense` (a time series is already
+chronological by key).
 
 ## Build
 

@@ -41,12 +41,14 @@ type Row struct {
 	// a lower bound.
 	PartialRecords int `json:"partial_records"`
 	// FirstRecord / LastRecord bound the bucket's records in time (RFC 3339,
-	// whole seconds, in the aggregation location); empty when no record
-	// carried a timestamp. For a session row they are its start and last
-	// activity — since gem-agent ADR-0071 (v0.66.0) the session id is a UUID
-	// and no longer says when the session began.
-	FirstRecord string `json:"first_record,omitempty"`
-	LastRecord  string `json:"last_record,omitempty"`
+	// whole seconds, in the aggregation location). Written always, "" when
+	// no record carried a timestamp (an "unknown" bucket, a DenseTimeRows
+	// filler) — no omitempty, so a consumer can tell "no timestamp" from
+	// "a CLI that predates the key". For a session row they are its start
+	// and last activity — since gem-agent ADR-0071 (v0.66.0) the session id
+	// is a UUID and no longer says when the session began.
+	FirstRecord string `json:"first_record"`
+	LastRecord  string `json:"last_record"`
 
 	first, last time.Time // the unformatted bounds, for SortRows "time"
 }
@@ -255,11 +257,16 @@ func DenseTimeRows(rows []Row, dim Dimension, start, end time.Time, loc *time.Lo
 	return out
 }
 
+// SortValues lists the accepted SortRows keys, for flag help and errors.
+const SortValues = "key|time|cost|prompt|output|thoughts|cached|tokens|records"
+
 // SortRows orders rows in place. "key" (default) sorts ascending by key;
 // "time" sorts ascending by each row's first record (rows without a
 // timestamp last, ties by key) — the chronological order `sessions` needs
 // now that a session id no longer sorts by start time; a metric name sorts
-// descending so the biggest contributors come first.
+// descending so the biggest contributors come first. "time" is not for a
+// DenseTimeRows series: its filler rows have no record and would sink to
+// the end (see SortConflictsWithDense).
 func SortRows(rows []Row, by string) error {
 	switch by {
 	case "", "key":
@@ -290,7 +297,17 @@ func SortRows(rows []Row, by string) error {
 	case "records":
 		sort.SliceStable(rows, func(i, j int) bool { return rows[i].Records > rows[j].Records })
 	default:
-		return fmt.Errorf("unknown --sort %q (want key|time|cost|prompt|output|thoughts|cached|tokens|records)", by)
+		return fmt.Errorf("unknown --sort %q (want %s)", by, SortValues)
+	}
+	return nil
+}
+
+// SortConflictsWithDense reports the one sort that a dense time series
+// cannot take: "time" would order the zero-filled gap rows after every real
+// one. A time series is already chronological by key.
+func SortConflictsWithDense(by string, dense bool) error {
+	if dense && by == "time" {
+		return fmt.Errorf("--sort time cannot be combined with --dense (filler rows have no record); a time series is chronological by key already")
 	}
 	return nil
 }
