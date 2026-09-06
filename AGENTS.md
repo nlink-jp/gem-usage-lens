@@ -19,6 +19,7 @@ Current state: every command works end-to-end on the author's real data
 ```sh
 make build      # → dist/gem-usage-lens  (NEVER `go build` directly)
 make test       # go test ./...
+make test-linux # same suite on Linux (container)
 make vet        # go vet on host + GOOS=windows + GOOS=linux
 make build-all  # cross-compile, CGO-free
 make package    # archives + notarize the darwin zip
