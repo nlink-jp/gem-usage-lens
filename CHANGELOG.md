@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   plain macOS listing folds `._` members away — no extended attributes as pax
   headers, and exactly the canonical binary, `README.md` and `LICENSE`, compared
   in the C locale.
+- The Linux-archive check in `make verify-release` reads each archive's pax
+  headers with Python's `tarfile` instead of grepping the decompressed stream,
+  which also matched file text that names the keywords (a bundled CHANGELOG,
+  for one).
 
 ## [0.1.4] - 2026-09-05
 
