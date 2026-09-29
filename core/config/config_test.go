@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nlink-jp/gem-usage-lens/core/budget"
 	"github.com/nlink-jp/gem-usage-lens/core/pricing"
@@ -59,11 +60,14 @@ cache_read_multiplier = 0.25
 		t.Fatal(err)
 	}
 	tbl := cfg.PricingTable(pricing.Default())
-	r := tbl["gemini-3.7-flash"]
+	r := tbl["gemini-3.7-flash"][0].Rates
 	if r.InputPerMTok != 1.5 || r.OutputPerMTok != 3.75 || r.CacheReadMultiplier != 0.1 || r.GroundingPerReq != 0.014 || r.NonGlobalMultiplier != 1.1 {
 		t.Fatalf("partial override must inherit the rest: %+v", r)
 	}
-	n := tbl["gemini-9"]
+	n := tbl["gemini-9"][0].Rates
+	if len(tbl["gemini-9"]) != 1 {
+		t.Fatalf("a model new to the table gets one open period: %+v", tbl["gemini-9"])
+	}
 	if n.InputPerMTok != 2 || n.OutputPerMTok != 8 || n.CacheReadMultiplier != 0.25 || n.NonGlobalMultiplier != 1.1 || n.GroundingPerReq != 0.014 {
 		t.Fatalf("new model must start from the standard modifiers: %+v", n)
 	}
@@ -71,8 +75,68 @@ cache_read_multiplier = 0.25
 		t.Fatalf("%v", got)
 	}
 	// The base table is not mutated.
-	if pricing.Default()["gemini-3.7-flash"].InputPerMTok != 0.75 {
+	if pricing.Default()["gemini-3.7-flash"][0].InputPerMTok != 0.75 {
 		t.Fatal("Default mutated")
+	}
+}
+
+// Config has no dates, so an override lands in every price period of the
+// model, and an omitted field keeps each period's own value (ADR-0001 §5).
+// Overriding the input or output price flattens the change, and that is named.
+func TestPricingOverrideAppliesToEveryPeriod(t *testing.T) {
+	boundary := time.Date(2027, 1, 1, 8, 0, 0, 0, time.UTC)
+	base := pricing.Table{
+		"sched": {
+			{Rates: pricing.StandardRates(0.75, 3.75)},
+			{From: boundary, Rates: pricing.StandardRates(1.50, 7.50)},
+		},
+		"flat": pricing.Flat(pricing.StandardRates(1, 5)),
+	}
+	p := write(t, `
+[pricing.models."sched"]
+cache_read_multiplier = 0.2
+
+[pricing.models."flat"]
+input_per_mtok = 2.0
+`)
+	cfg, _, _, err := Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tbl := cfg.PricingTable(base)
+	if err := tbl.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	ps := tbl["sched"]
+	if len(ps) != 2 || !ps[1].From.Equal(boundary) {
+		t.Fatalf("the periods must survive an override: %+v", ps)
+	}
+	if ps[0].InputPerMTok != 0.75 || ps[1].InputPerMTok != 1.50 || ps[0].CacheReadMultiplier != 0.2 || ps[1].CacheReadMultiplier != 0.2 {
+		t.Fatalf("override must reach every period and leave omitted fields per period: %+v", ps)
+	}
+	if base["sched"][0].CacheReadMultiplier != 0.1 || base["sched"][1].CacheReadMultiplier != 0.1 {
+		t.Fatal("the base periods were mutated")
+	}
+	// Only a multiplier is overridden on the scheduled model, and "flat" has
+	// no change to erase: nothing is flattened.
+	if got := cfg.FlattenedModels(base); len(got) != 0 {
+		t.Fatalf("nothing flattened, got %v", got)
+	}
+
+	p = write(t, `
+[pricing.models."sched"]
+output_per_mtok = 4.0
+`)
+	cfg, _, _, err = Load(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.FlattenedModels(base); len(got) != 1 || got[0] != "sched" {
+		t.Fatalf("an output override on a scheduled model flattens it: %v", got)
+	}
+	ps = cfg.PricingTable(base)["sched"]
+	if ps[0].OutputPerMTok != 4 || ps[1].OutputPerMTok != 4 || ps[1].InputPerMTok != 1.50 {
+		t.Fatalf("%+v", ps)
 	}
 }
 

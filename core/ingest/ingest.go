@@ -51,7 +51,7 @@ type RepriceResult struct {
 func Reprice(st store.Store, tbl pricing.Table, dryRun bool) (RepriceResult, error) {
 	unknown := map[string]int{}
 	sr, err := st.Reprice(func(rec model.UsageRecord) model.Cost {
-		if _, known := tbl.Lookup(rec.Model); !known && model.Billable(rec.Model) {
+		if !tbl.Known(rec.Model) && model.Billable(rec.Model) {
 			unknown[rec.Model]++
 		}
 		return cost.ComputeRecord(rec, tbl)
@@ -90,7 +90,7 @@ func Run(st store.Store, root string, tbl pricing.Table, host string) (Result, e
 
 		priced := make([]model.PricedRecord, len(recs))
 		for i, r := range recs {
-			if _, known := tbl.Lookup(r.Model); !known && model.Billable(r.Model) {
+			if !tbl.Known(r.Model) && model.Billable(r.Model) {
 				if res.UnknownModels == nil {
 					res.UnknownModels = map[string]int{}
 				}

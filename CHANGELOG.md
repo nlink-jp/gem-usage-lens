@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Prices are dated: each call is priced at the rate in force when it was
+  made** (ADR-0001). A model's prices are now periods, each starting at an
+  instant, and `ingest` and `reprice` both use the record's own timestamp. This
+  is what lets a list-price change be recorded without rewriting history: the
+  new price is appended as a period and `reprice` corrects only the calls from
+  that instant on. Before, the only way to record a change was to overwrite the
+  price, and the next `reprice` then applied it to every earlier call too.
+  Google lists Gemini 3.8 / 3.7 / 3.6 Flash at $1.50 / $7.50 from 2027-01-01
+  (now $0.75 / $3.75, introductory); the table still states only prices in
+  force, so that period is added once the change has happened — until that
+  update, calls after 2027-01-01 are recorded at the current price, and
+  `reprice` corrects them afterwards. No stored cost changes with this release.
+- `models` prints one row per price period with a `FROM` column, and stars the
+  period in force when a model has more than one. `models --json` keeps
+  `models` (model → the rates in force now, unchanged shape) and adds
+  `schedule` (model → every period, `from` = RFC 3339 start or `""`).
+- `models` and `doctor` name a config override that erases a price change:
+  config has no dates, so an `input_per_mtok` / `output_per_mtok` override
+  applies at every date. The `config.example.toml` example that set a new list
+  price through config is replaced — doing that would reprice every earlier
+  call at the new rate.
+
 ### Fixed
 
 - **`make verify-release` now fails closed.** Its last block chained unzip, the

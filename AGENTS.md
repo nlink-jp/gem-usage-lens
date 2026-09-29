@@ -36,7 +36,7 @@ cmd/                    stdlib-flag dispatch (cmd.go), commands.go, budget.go [t
 core/
   model/                UsageRecord{Key, Source, Location, Partial, Usage{Prompt,Output,Thoughts,Cached,Total}}
   collect/              Discover, ReadHeader, ParseFrom (offset continuation, legacy fill-in) [tested]
-  pricing/              Rates + Default() + VerifiedOn + Lookup [tested]
+  pricing/              Rates + dated Periods + Default() + VerifiedOn + Lookup(model, at) / Known [tested]
   cost/                 pure cost engine [tested]
   aggregate/            group-by / dense / sort / Summary(+unpriced, partial) [tested]
   budget/               MonthWindow / Consume / Project / Build (pure) [tested]
@@ -83,7 +83,19 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   `Rates`; the engine reads the record's model's values. `VerifiedOn` is the
   date the table was checked against the pricing page, and the table carries
   **no scheduled future prices** (the page lists 2027 prices for 3.8 / 3.7 / 3.6 Flash —
-  re-check at the next sync, don't pre-write). Tiered models (3.1 Pro) are
+  re-check at the next sync, don't pre-write). **Once a change has happened, APPEND
+  it as a period — never overwrite the old price** (ADR-0001): a model maps to
+  periods, each starting at a literal RFC 3339 instant (midnight US Pacific on the
+  date, e.g. `2027-01-01T00:00:00-08:00`; whole seconds; never derived from a
+  zone), and every pricing path uses the record's own `ts` — ingest and
+  `reprice` alike — so `reprice` corrects the calls from the boundary on and
+  leaves earlier history alone. Overwriting would make the next `reprice` apply
+  the new price to all of history. `TestDefaultTableHoldsNoScheduledPrice` pins
+  "no period starts after VerifiedOn"; `Validate` pins the period invariants.
+  "Is this model priced" is `Known` (no time); config overrides have no dates
+  and apply to every period (`FlattenedModels` names the ones that erase a
+  change). The GUI ingests with its **bundled** CLI, so a new period reaches its
+  users only with a GUI release. Tiered models (3.1 Pro) are
   deliberately absent: a flat rate would under-count long prompts.
 - **Region**: header `location` other than `global` → ×1.1. An empty location
   (pre-0057 header) is treated as global, not surcharged.
@@ -152,4 +164,7 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
 
 - [docs/ja/gem-usage-lens-rfp.ja.md](docs/ja/gem-usage-lens-rfp.ja.md) (primary)
 - [docs/en/gem-usage-lens-rfp.md](docs/en/gem-usage-lens-rfp.md)
+- ADR-0001 effective-dated prices:
+  [en](docs/en/adr/0001-effective-dated-pricing.md) /
+  [ja](docs/ja/adr/0001-effective-dated-pricing.ja.md)
 - gem-agent ADR-0057 (accounting records) and ADR-0022 (`GEMAGENT_STATE_DIR`)

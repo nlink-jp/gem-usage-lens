@@ -44,11 +44,12 @@ func Compute(u model.Usage, r pricing.Rates, source model.Source, location strin
 	return subtotal
 }
 
-// ComputeRecord resolves the model's rates from the table and returns a Cost.
-// A record whose model is absent from the table costs 0 — which is what
-// `unpriced` reporting exists to catch.
+// ComputeRecord resolves the rates in force for the record's model at the
+// record's own timestamp (ADR-0001) and returns a Cost. A record whose model
+// is absent from the table costs 0 — which is what `unpriced` reporting
+// exists to catch.
 func ComputeRecord(rec model.UsageRecord, t pricing.Table) model.Cost {
-	r, ok := t.Lookup(rec.Model)
+	r, ok := t.Lookup(rec.Model, rec.Timestamp)
 	if !ok {
 		return model.Cost{}
 	}

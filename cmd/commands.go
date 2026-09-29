@@ -641,6 +641,36 @@ func runSessions(args []string) error {
 
 // --- models ---
 
+// schedulePeriod is one price period in `models --json`'s "schedule": the
+// rates plus the instant they start, RFC 3339 with its offset, or "" for the
+// open first period. Always written, never omitted (ADR-0001 §6).
+type schedulePeriod struct {
+	From string `json:"from"`
+	pricing.Rates
+}
+
+// modelsJSON is the `models --json` document. "models" keeps its original
+// shape — model → the rates in force at now — so existing readers see no
+// change; "schedule" adds every period of every model.
+func modelsJSON(tbl pricing.Table, now time.Time) map[string]any {
+	schedule := make(map[string][]schedulePeriod, len(tbl))
+	for m, ps := range tbl {
+		out := make([]schedulePeriod, len(ps))
+		for i, p := range ps {
+			out[i] = schedulePeriod{Rates: p.Rates}
+			if !p.From.IsZero() {
+				out[i].From = p.From.Format(time.RFC3339)
+			}
+		}
+		schedule[m] = out
+	}
+	return map[string]any{
+		"verified_on": pricing.VerifiedOn,
+		"models":      tbl.Current(now),
+		"schedule":    schedule,
+	}
+}
+
 func runModels(args []string) error {
 	fs := flag.NewFlagSet("models", flag.ExitOnError)
 	asJSON := fs.Bool("json", false, "machine-readable JSON output")
@@ -653,12 +683,21 @@ func runModels(args []string) error {
 		return err
 	}
 	tbl := pricingTable(cfg)
+	now := time.Now()
+	if *asJSON {
+		return printJSON(modelsJSON(tbl, now))
+	}
+	printModels(os.Stdout, tbl, cfg, now)
+	return nil
+}
+
+// printModels writes the rate table: one row per price period, with the
+// instant each one starts. A model whose price changes over time has several
+// rows, and the one in force now is starred.
+func printModels(w io.Writer, tbl pricing.Table, cfg *config.Config, now time.Time) {
 	overridden := map[string]bool{}
 	for _, m := range cfg.OverriddenModels() {
 		overridden[m] = true
-	}
-	if *asJSON {
-		return printJSON(map[string]any{"verified_on": pricing.VerifiedOn, "models": tbl})
 	}
 	names := make([]string, 0, len(tbl))
 	for k := range tbl {
@@ -666,22 +705,46 @@ func runModels(args []string) error {
 	}
 	sort.Strings(names)
 
-	tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(tw, "MODEL\tINPUT/Mtok\tOUTPUT/Mtok\tCACHE-READ\tGROUNDING/req\tNON-GLOBAL\tSOURCE")
+	starred := false
+	tw := tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
+	fmt.Fprintln(tw, "MODEL\tFROM\tINPUT/Mtok\tOUTPUT/Mtok\tCACHE-READ\tGROUNDING/req\tNON-GLOBAL\tSOURCE")
 	for _, m := range names {
-		r := tbl[m]
 		src := "built-in"
 		if overridden[m] {
 			src = "config"
 		}
-		fmt.Fprintf(tw, "%s\t$%.2f\t$%.2f\t%gx\t$%.3f\t%gx\t%s\n", m, r.InputPerMTok, r.OutputPerMTok,
-			r.CacheReadMultiplier, r.GroundingPerReq, r.NonGlobalMultiplier, src)
+		ps := tbl[m]
+		inForce := 0
+		for i, p := range ps {
+			if !p.From.After(now) {
+				inForce = i
+			}
+		}
+		for i, p := range ps {
+			from := "—"
+			if !p.From.IsZero() {
+				from = p.From.Format(time.RFC3339)
+			}
+			if len(ps) > 1 && i == inForce {
+				from = "*" + from
+				starred = true
+			}
+			r := p.Rates
+			fmt.Fprintf(tw, "%s\t%s\t$%.2f\t$%.2f\t%gx\t$%.3f\t%gx\t%s\n", m, from, r.InputPerMTok, r.OutputPerMTok,
+				r.CacheReadMultiplier, r.GroundingPerReq, r.NonGlobalMultiplier, src)
+		}
 	}
 	tw.Flush()
-	fmt.Printf("\nRates USD per 1M tokens on the global endpoint (built-in table verified %s against the Vertex AI pricing page).\n", pricing.VerifiedOn)
-	fmt.Println("OUTPUT covers answer and thinking tokens. CACHE-READ × input is the cached-prompt price. GROUNDING is added per web_search call.")
-	fmt.Println("Override via config.toml [pricing.models], then run `reprice` to apply to stored history.")
-	return nil
+	fmt.Fprintf(w, "\nRates USD per 1M tokens on the global endpoint (built-in table verified %s against the Vertex AI pricing page).\n", pricing.VerifiedOn)
+	fmt.Fprintln(w, "OUTPUT covers answer and thinking tokens. CACHE-READ × input is the cached-prompt price. GROUNDING is added per web_search call.")
+	fmt.Fprintln(w, "A call is priced at the row in force when it was made; FROM is when a price starts (— = from the beginning).")
+	if starred {
+		fmt.Fprintln(w, "* = in force now.")
+	}
+	for _, m := range cfg.FlattenedModels(pricing.Default()) {
+		fmt.Fprintf(w, "Note: config sets %s's input/output price at every date, so its price change does not show in any cost.\n", m)
+	}
+	fmt.Fprintln(w, "Override via config.toml [pricing.models], then run `reprice` to apply to stored history.")
 }
 
 // --- verify (transcript accounting check, straight from the files) ---
@@ -981,6 +1044,9 @@ func runDoctor(args []string) error {
 		fmt.Println("  [loaded ]")
 		if models := cfg.OverriddenModels(); len(models) > 0 {
 			fmt.Printf("  price overrides: %s\n", strings.Join(models, ", "))
+		}
+		for _, m := range cfg.FlattenedModels(pricing.Default()) {
+			fmt.Printf("  [note   ] %s: the override sets input/output at every date, so its price change does not show in any cost\n", m)
 		}
 	}
 

@@ -33,10 +33,15 @@
 # incremental. Run `gem-usage-lens reprice` afterwards to apply it to the
 # history already in the store.
 
-# Cost a built-in model at a different rate (e.g. after a price revision):
+# Cost a built-in model at a different rate (e.g. a negotiated discount). There
+# are no dates here: a field set in this file applies at EVERY date. Do not use
+# it to follow a list-price change — a new list price belongs to the built-in
+# table as a dated period (a build update), and setting it here would reprice
+# every earlier call at the new rate too. `models` / `doctor` flag an override
+# that erases a built-in price change.
 # [pricing.models."gemini-3.7-flash"]
-# input_per_mtok  = 1.50
-# output_per_mtok = 7.50
+# input_per_mtok  = 0.60
+# output_per_mtok = 3.00
 
 # Price a model released after this build — the standard modifiers come for
 # free. Check the pricing page's cached-input column first: if a model's

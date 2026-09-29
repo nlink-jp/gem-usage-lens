@@ -54,6 +54,9 @@ make vet        # host + GOOS=windows + GOOS=linux
 
 - [`docs/ja/gem-usage-lens-rfp.ja.md`](docs/ja/gem-usage-lens-rfp.ja.md) (primary)
 - [`docs/en/gem-usage-lens-rfp.md`](docs/en/gem-usage-lens-rfp.md)
+- ADR-0001 effective-dated prices:
+  [`docs/en/adr/0001-effective-dated-pricing.md`](docs/en/adr/0001-effective-dated-pricing.md) /
+  [`docs/ja/adr/0001-effective-dated-pricing.ja.md`](docs/ja/adr/0001-effective-dated-pricing.ja.md)
 
 The RFPs are a dated record (2026-09-02). Their price figures — including
 "Vertex grounding is $35 per 1,000" — are superseded; `core/pricing/table.go`

@@ -51,7 +51,7 @@ gem-usage-lens budget --limit-usd 100
 | `report` | store を集計。`--since` / `--until` / `--group-by` / `--source` / `--model` / `--project` / `--sort` / `--top` / `--dense` / `--summary` / `--compare` / `--tz` / `--json`。 |
 | `budget` | 暦月予算の状態: 消費・残量・警告状態・ペース予測。`--limit-usd` / `--limit-tokens` / `--warn` / `--critical` / `--tz` / `--json`。 |
 | `sessions` | セッションごとに 1 行。最初と最後のモデル呼び出し時刻つきで時系列順（既定 `--sort time` なので `--top N` 単独は古い方から N 件。大きい順は `--sort cost --top 10`）。`--tz` / `--json`。 |
-| `models` | 単価表（検証日つき）と、config 由来のエントリ。 |
+| `models` | 単価表（価格の期間ごとに 1 行、開始の瞬間つき）と検証日、config 由来のエントリ。 |
 | `reprice` | 単価変更後（config または新ビルド）に蓄積済みコストを再計算。`--dry-run` で確認。 |
 | `verify` | 全 transcript の会計チェックサム（`prompt + output + thoughts + tool prompt == total`）を検査し、gem-agent ADR-0057 以前のファイルを列挙。 |
 | `doctor` | sessions root・config パス（無ければ探索した全パス）・store パスを表示。 |
@@ -119,6 +119,15 @@ Vertex AI の **global** エンドポイントにおける USD / 100 万トー�
 1 クエリ分を加算するので、この行は下限です。Gemini 3 系で合算される月 5,000 クエリの
 無料枠も対象外です（請求額ではなく定価換算のため）。
 
+**各呼び出しは、その時点で有効だった単価で計算します。** モデルの単価はある日付で
+変わることがあります — Google は 3.8 / 3.7 / 3.6 Flash を、現行の導入価格
+$0.75 / $3.75 から 2027-01-01 に $1.50 / $7.50 へ上げると掲載しています — そのため
+単価表はモデルごとの単価を、ある瞬間から始まる期間として持ちます（`models` の
+`FROM` 列）。表に載せるのは有効な単価だけです。予定された変更は実施された後に、
+その日付の米国太平洋時間の午前 0 時から始まる新しい期間として追加し、`reprice` が
+その瞬間以降の呼び出しだけを直します（それより前には触れません）。その更新が出荷
+されるまで、価格変更後の呼び出しは旧単価で記録されます。
+
 単価表に無いモデルは **$0** になり、それをあらゆる面で明示します: `ingest` /
 `reprice` の stderr 警告、`report --summary` の `unpriced_records`（モデル別）、
 GUI のバッジ。リリースを待たずに直すには `config.toml` で単価を書いて `reprice`:
@@ -130,8 +139,10 @@ output_per_mtok = 5.0
 ```
 
 書いたフィールドだけが上書きされ、残りは継承します（キャッシュ倍率 0.1、
-グラウンディング $0.014、非 global 1.1）。全フィールドは
-[config.example.toml](config.example.toml) を参照。
+グラウンディング $0.014、非 global 1.1）。config には日付がありません: 書いた
+フィールドは全日付に効くので、単価が時期で変わるモデルに `input_per_mtok` や
+`output_per_mtok` を書くと、その変化は消えます — `models` と `doctor` がそれを
+知らせます。全フィールドは [config.example.toml](config.example.toml) を参照。
 
 ## 設定
 
@@ -168,6 +179,8 @@ gem-agent v0.55（ADR-0057、2026-08-30）以前の transcript は main ルー�
 
 `report --json`、`report --summary --json`、`budget --json`、`sessions --json`、
 `models --json`、`verify --json` は安定した機械可読出力です（GUI は前 3 つを使用）。
+`models --json` は `models`（モデル → 現在有効な単価）と `schedule`（モデル → 全
+期間。各期間の `from` は開始の瞬間の RFC 3339、最初の期間は `""`）を持ちます。
 時刻は秒精度の RFC 3339 です。各行に `first_record` / `last_record`（その集計単位で
 最初・最後のモデル呼び出し時刻、`--tz` の地域。`--dense` の穴埋め行など時刻を持つ
 レコードが無い行は `""`）が付きます。セッション行ではそれが実行時刻です — gem-agent

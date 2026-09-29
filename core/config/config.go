@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -172,6 +173,10 @@ func (c *Config) SessionsRoot(def string) string {
 // returning a new table (base is not mutated). A model absent from base is
 // added, starting from the standard modifiers, so a two-line override is
 // enough to price a model this build has never heard of.
+//
+// Config has no dates: an overridden field replaces that field in EVERY price
+// period of the model (a negotiated rate replaces the list price at all
+// dates), and an omitted field keeps each period's own value (ADR-0001).
 func (c *Config) PricingTable(base pricing.Table) pricing.Table {
 	out := make(pricing.Table, len(base))
 	maps.Copy(out, base)
@@ -179,17 +184,40 @@ func (c *Config) PricingTable(base pricing.Table) pricing.Table {
 		return out
 	}
 	for name, ov := range c.Pricing.Models {
-		r, known := out[name]
+		ps, known := out[name]
 		if !known {
-			r = pricing.StandardRates(0, 0)
+			ps = pricing.Flat(pricing.StandardRates(0, 0))
 		}
-		setIf(&r.InputPerMTok, ov.InputPerMTok)
-		setIf(&r.OutputPerMTok, ov.OutputPerMTok)
-		setIf(&r.CacheReadMultiplier, ov.CacheReadMultiplier)
-		setIf(&r.GroundingPerReq, ov.GroundingPerReq)
-		setIf(&r.NonGlobalMultiplier, ov.NonGlobalMultiplier)
-		out[name] = r
+		ps = slices.Clone(ps) // the periods are shared with base
+		for i := range ps {
+			r := &ps[i].Rates
+			setIf(&r.InputPerMTok, ov.InputPerMTok)
+			setIf(&r.OutputPerMTok, ov.OutputPerMTok)
+			setIf(&r.CacheReadMultiplier, ov.CacheReadMultiplier)
+			setIf(&r.GroundingPerReq, ov.GroundingPerReq)
+			setIf(&r.NonGlobalMultiplier, ov.NonGlobalMultiplier)
+		}
+		out[name] = ps
 	}
+	return out
+}
+
+// FlattenedModels lists, sorted, the models whose price change over time the
+// config erases: a model with more than one period in base whose input or
+// output price the config overrides. The override is applied to every period
+// by design, so the dated change no longer shows in any cost — `models` and
+// `doctor` name these so the flattening is never silent.
+func (c *Config) FlattenedModels(base pricing.Table) []string {
+	if c == nil {
+		return nil
+	}
+	var out []string
+	for name, ov := range c.Pricing.Models {
+		if len(base[name]) > 1 && (ov.InputPerMTok != nil || ov.OutputPerMTok != nil) {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
 	return out
 }
 

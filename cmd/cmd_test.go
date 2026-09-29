@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/nlink-jp/gem-usage-lens/core/aggregate"
 	"github.com/nlink-jp/gem-usage-lens/core/budget"
 	"github.com/nlink-jp/gem-usage-lens/core/config"
+	"github.com/nlink-jp/gem-usage-lens/core/pricing"
 )
 
 // `--version` and `version` must print the same line: the Homebrew formula
@@ -173,5 +175,92 @@ func TestPrintReportTimeColumns(t *testing.T) {
 	}
 	if tableTime("") != "—" || tableTime("garbage") != "garbage" {
 		t.Fatal("tableTime fallbacks")
+	}
+}
+
+// `models --json` keeps "models" in its original shape — model → the rates in
+// force now, the same fields — and adds "schedule" with every period, "from"
+// always written ("" for the open first period). Pinned through a JSON round
+// trip, since the bytes are the contract.
+func TestModelsJSONShape(t *testing.T) {
+	boundary := time.Date(2027, 1, 1, 0, 0, 0, 0, time.FixedZone("PST", -8*3600))
+	tbl := pricing.Table{
+		"flat": pricing.Flat(pricing.StandardRates(1, 5)),
+		"sched": {
+			{Rates: pricing.StandardRates(0.75, 3.75)},
+			{From: boundary, Rates: pricing.StandardRates(1.50, 7.50)},
+		},
+	}
+	decode := func(now time.Time) map[string]any {
+		b, err := json.Marshal(modelsJSON(tbl, now))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(b, &doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+
+	before := decode(boundary.Add(-time.Second))
+	if before["verified_on"] != pricing.VerifiedOn {
+		t.Fatalf("verified_on: %v", before["verified_on"])
+	}
+	models := before["models"].(map[string]any)
+	sched := models["sched"].(map[string]any)
+	for _, k := range []string{"input_per_mtok", "output_per_mtok", "cache_read_multiplier", "grounding_per_req", "non_global_multiplier"} {
+		if _, ok := sched[k]; !ok {
+			t.Fatalf("models entry lost %q: %v", k, sched)
+		}
+	}
+	if _, ok := sched["from"]; ok {
+		t.Fatal(`"models" must keep its original fields; "from" belongs to "schedule"`)
+	}
+	if sched["input_per_mtok"] != 0.75 {
+		t.Fatalf("in force before the boundary: %v", sched["input_per_mtok"])
+	}
+	after := decode(boundary)
+	if got := after["models"].(map[string]any)["sched"].(map[string]any)["input_per_mtok"]; got != 1.5 {
+		t.Fatalf("in force from the boundary: %v", got)
+	}
+
+	periods := before["schedule"].(map[string]any)["sched"].([]any)
+	if len(periods) != 2 {
+		t.Fatalf("schedule: %v", periods)
+	}
+	first, second := periods[0].(map[string]any), periods[1].(map[string]any)
+	if v, ok := first["from"]; !ok || v != "" {
+		t.Fatalf(`the open period must carry "from": "" — got %v (present=%v)`, v, ok)
+	}
+	if second["from"] != "2027-01-01T00:00:00-08:00" || second["input_per_mtok"] != 1.5 {
+		t.Fatalf("second period: %v", second)
+	}
+	if flat := before["schedule"].(map[string]any)["flat"].([]any); len(flat) != 1 {
+		t.Fatalf("a flat model has one period: %v", flat)
+	}
+}
+
+func TestPrintModelsShowsEveryPeriod(t *testing.T) {
+	boundary := time.Date(2027, 1, 1, 0, 0, 0, 0, time.FixedZone("PST", -8*3600))
+	tbl := pricing.Table{
+		"sched": {
+			{Rates: pricing.StandardRates(0.75, 3.75)},
+			{From: boundary, Rates: pricing.StandardRates(1.50, 7.50)},
+		},
+	}
+	var buf bytes.Buffer
+	printModels(&buf, tbl, &config.Config{}, boundary.Add(time.Hour))
+	out := buf.String()
+	for _, want := range []string{"FROM", "sched  —", "*2027-01-01T00:00:00-08:00", "$1.50", "* = in force now."} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	// A table with no price change stars nothing.
+	buf.Reset()
+	printModels(&buf, pricing.Table{"flat": pricing.Flat(pricing.StandardRates(1, 5))}, &config.Config{}, boundary)
+	if strings.Contains(buf.String(), "*") {
+		t.Errorf("no star without a price change:\n%s", buf.String())
 	}
 }

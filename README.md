@@ -55,7 +55,7 @@ gem-usage-lens budget --limit-usd 100
 | `report` | Aggregate the store. `--since` / `--until` / `--group-by` / `--source` / `--model` / `--project` / `--sort` / `--top` / `--dense` / `--summary` / `--compare` / `--tz` / `--json`. |
 | `budget` | Calendar-month budget state: used, remaining, warning state, pace forecast. `--limit-usd` / `--limit-tokens` / `--warn` / `--critical` / `--tz` / `--json`. |
 | `sessions` | One row per session with its first and last model call, in chronological order (`--sort time` is the default, so `--top N` alone is the oldest N; `--sort cost --top 10` for the biggest). `--tz` / `--json`. |
-| `models` | The rate table with its verification date, and which entries come from your config. |
+| `models` | The rate table — one row per price period, with the instant it starts — its verification date, and which entries come from your config. |
 | `reprice` | Recompute stored costs after a rate change (config or a new build). `--dry-run` previews. |
 | `verify` | Check every transcript's accounting checksum (`prompt + output + thoughts + tool prompt == total`) and list files written before gem-agent ADR-0057. |
 | `doctor` | Show the resolved sessions root, config path (or every path searched) and store path. |
@@ -128,6 +128,16 @@ that line is a lower bound. The 5,000 Grounding Queries per month at no charge
 (aggregated across Gemini 3 models) are not modelled either — the figure is the
 list price, not the invoice.
 
+**Each call is priced at the rate in force when it was made.** A model's price
+can change on a date — Google lists 3.8 / 3.7 / 3.6 Flash at $1.50 / $7.50 from
+2027-01-01, up from the current introductory $0.75 / $3.75 — so the table holds
+each model's prices as periods, each starting at an instant (`models` shows a
+`FROM` column). The table states only prices in force: a scheduled change is
+added once it has happened, as a new period starting at midnight US Pacific
+Time on its date, and `reprice` then corrects the calls made from that instant
+on without touching earlier ones. Until that update ships, calls after a price
+change are recorded at the old price.
+
 A model missing from the table costs **$0**, and every surface says so:
 `ingest` and `reprice` warn on stderr, `report --summary` counts
 `unpriced_records` per model, and the GUI shows a badge. To fix without waiting
@@ -140,8 +150,10 @@ output_per_mtok = 5.0
 ```
 
 Only the fields you set are overridden; the rest inherit (cache multiplier 0.1,
-grounding $0.014, non-global 1.1). See
-[config.example.toml](config.example.toml) for every field.
+grounding $0.014, non-global 1.1). Config has no dates: a field you set applies
+at every date, so setting `input_per_mtok` or `output_per_mtok` on a model
+whose price changes over time erases that change — `models` and `doctor` say
+so. See [config.example.toml](config.example.toml) for every field.
 
 ## Configuration
 
@@ -181,7 +193,9 @@ without `source` / `model`; those are filled from the header and flagged
 
 `report --json`, `report --summary --json`, `budget --json`, `sessions --json`,
 `models --json` and `verify --json` are stable machine-readable outputs; the
-GUI consumes the first three. Timestamps are RFC 3339 with whole seconds.
+GUI consumes the first three. `models --json` has `models` (model → the rates
+in force now) and `schedule` (model → every price period, each with `from`:
+the RFC 3339 instant it starts, or `""` for the first period). Timestamps are RFC 3339 with whole seconds.
 Every row carries `first_record` / `last_record` (the bucket's earliest and
 latest model call, in the `--tz` location; `""` when no record in the bucket
 had a timestamp, such as a `--dense` filler row); for a session row that is

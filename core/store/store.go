@@ -31,8 +31,9 @@ type Store interface {
 	// Reprice recomputes cost_usd for every stored record using price, from the
 	// token columns already in the store — no source transcript needed. This is
 	// what makes a rate-table change apply to history: ingest is incremental,
-	// so already-read bytes are never re-priced otherwise. dryRun reports what
-	// would change without writing.
+	// so already-read bytes are never re-priced otherwise. Each record reaches
+	// price with its stored timestamp, so it is priced at the rate in force
+	// when it was made. dryRun reports what would change without writing.
 	Reprice(price func(model.UsageRecord) model.Cost, dryRun bool) (RepriceResult, error)
 
 	// IngestState / SetIngestState track how far each source file has been
@@ -301,7 +302,7 @@ func (s *sqliteStore) Query(f Filter) ([]model.PricedRecord, error) {
 	return out, rows.Err()
 }
 
-const repriceSelect = `SELECT record_key, model, source, location,
+const repriceSelect = `SELECT record_key, COALESCE(ts, 0), model, source, location,
  prompt_tokens, output_tokens, thoughts_tokens, cached_tokens, total_tokens, COALESCE(tool_prompt_tokens, 0), cost_usd
  FROM usage_records`
 
@@ -326,14 +327,21 @@ func (s *sqliteStore) Reprice(price func(model.UsageRecord) model.Cost, dryRun b
 		var rec model.UsageRecord
 		var src string
 		var old float64
+		var ts int64
 		if err := rows.Scan(
-			&rec.Key, &rec.Model, &src, &rec.Location,
+			&rec.Key, &ts, &rec.Model, &src, &rec.Location,
 			&rec.Usage.Prompt, &rec.Usage.Output, &rec.Usage.Thoughts, &rec.Usage.Cached, &rec.Usage.Total, &rec.Usage.ToolPrompt, &old,
 		); err != nil {
 			rows.Close()
 			return res, err
 		}
 		rec.Source = model.Source(src)
+		// The record is priced at its own time (ADR-0001), so repricing is
+		// deterministic and a later price period never reaches back into
+		// earlier history. ts 0 (no timestamp) stays zero → first period.
+		if ts != 0 {
+			rec.Timestamp = time.Unix(ts, 0)
+		}
 		rec.Usage = rec.Usage.WithDerivedToolPrompt()
 		now := price(rec).ListPriceUSD
 
