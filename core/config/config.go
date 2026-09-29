@@ -203,17 +203,21 @@ func (c *Config) PricingTable(base pricing.Table) pricing.Table {
 }
 
 // FlattenedModels lists, sorted, the models whose price change over time the
-// config erases: a model with more than one period in base whose input or
-// output price the config overrides. The override is applied to every period
-// by design, so the dated change no longer shows in any cost — `models` and
-// `doctor` name these so the flattening is never silent.
+// config erases: an override key whose model has more than one period in base
+// and whose input or output price the config sets. The override is applied to
+// every period by design, so the dated change no longer shows in any cost —
+// `models` and `doctor` name these so the flattening is never silent. The key
+// is resolved as Lookup resolves it, so a snapshot alias
+// ("gemini-3.7-flash-001") that shadows a changing model is named too: such a
+// key is its own flat entry and does not follow the base model's periods.
 func (c *Config) FlattenedModels(base pricing.Table) []string {
 	if c == nil {
 		return nil
 	}
 	var out []string
 	for name, ov := range c.Pricing.Models {
-		if len(base[name]) > 1 && (ov.InputPerMTok != nil || ov.OutputPerMTok != nil) {
+		ps, _ := base.Periods(name)
+		if len(ps) > 1 && (ov.InputPerMTok != nil || ov.OutputPerMTok != nil) {
 			out = append(out, name)
 		}
 	}

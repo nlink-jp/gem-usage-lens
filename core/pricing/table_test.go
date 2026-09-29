@@ -105,6 +105,7 @@ func TestLookupPicksThePeriodInForce(t *testing.T) {
 		{"2027-01-01T17:00:00+09:00", 1.50}, // 17:00 JST is the same instant
 		{"2027-07-01T06:59:59Z", 1.50},
 		{"2027-07-01T07:00:00Z", 2.00}, // PDT midnight is 07:00Z, not 08:00Z
+		{"2027-07-01T07:00:01Z", 2.00},
 		{"2030-01-01T00:00:00Z", 2.00},
 	}
 	for _, c := range cases {

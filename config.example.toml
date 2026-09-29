@@ -38,7 +38,9 @@
 # it to follow a list-price change — a new list price belongs to the built-in
 # table as a dated period (a build update), and setting it here would reprice
 # every earlier call at the new rate too. `models` / `doctor` flag an override
-# that erases a built-in price change.
+# that erases a built-in price change. Use the model's own id as the key: a
+# snapshot alias ("gemini-3.7-flash-001") is a separate entry starting from the
+# standard modifiers, and does not follow the built-in model's price changes.
 # [pricing.models."gemini-3.7-flash"]
 # input_per_mtok  = 0.60
 # output_per_mtok = 3.00

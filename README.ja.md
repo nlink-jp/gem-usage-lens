@@ -142,7 +142,9 @@ output_per_mtok = 5.0
 グラウンディング $0.014、非 global 1.1）。config には日付がありません: 書いた
 フィールドは全日付に効くので、単価が時期で変わるモデルに `input_per_mtok` や
 `output_per_mtok` を書くと、その変化は消えます — `models` と `doctor` がそれを
-知らせます。全フィールドは [config.example.toml](config.example.toml) を参照。
+知らせます。キーはモデル自身の ID にしてください: `gemini-3.7-flash-001` のような
+スナップショット別名は別エントリになり、組み込みモデルではなく標準の倍率から始まり、
+その単価変更にも追従しません。全フィールドは [config.example.toml](config.example.toml) を参照。
 
 ## 設定
 

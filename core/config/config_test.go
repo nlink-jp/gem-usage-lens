@@ -134,6 +134,19 @@ output_per_mtok = 4.0
 	if got := cfg.FlattenedModels(base); len(got) != 1 || got[0] != "sched" {
 		t.Fatalf("an output override on a scheduled model flattens it: %v", got)
 	}
+	// A snapshot-alias key is its own flat entry, so it shadows the base
+	// model's periods for calls made under that id — named as well.
+	p2 := write(t, `
+[pricing.models."sched-001"]
+input_per_mtok = 1.0
+`)
+	cfg2, _, _, err := Load(p2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg2.FlattenedModels(base); len(got) != 1 || got[0] != "sched-001" {
+		t.Fatalf("an alias key over a scheduled model must be named: %v", got)
+	}
 	ps = cfg.PricingTable(base)["sched"]
 	if ps[0].OutputPerMTok != 4 || ps[1].OutputPerMTok != 4 || ps[1].InputPerMTok != 1.50 {
 		t.Fatalf("%+v", ps)

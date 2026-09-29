@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   applies at every date. The `config.example.toml` example that set a new list
   price through config is replaced — doing that would reprice every earlier
   call at the new rate.
+- The built-in table is re-verified against the Vertex AI pricing page
+  (`VerifiedOn` 2026-09-29): no price in force changed. Gemini 3.8 Flash Cyber
+  (allowlist-only, no function calling) is not added.
 
 ### Fixed
 

@@ -63,8 +63,9 @@ documents for billing.
    the beginning (a table test enforces this for every model). `Lookup(model,
    at)` returns the last period whose `From` is at or before `at` — a record
    exactly at `From` takes the new price. `Known(model)` answers "is this
-   model priced at all" without a time, for the unknown-model warnings and
-   `unpriced_*`. Every `From` must be a whole second, because the store keeps
+   model priced at all" without a time, for the `ingest` / `reprice`
+   unknown-model warnings (`unpriced_*` reads stored costs and never consults
+   the table). Every `From` must be a whole second, because the store keeps
    `ts` in whole seconds: ingest (full-precision timestamp) and `reprice`
    (stored seconds) then always choose the same period.
 
@@ -80,7 +81,7 @@ documents for billing.
    permanent. At the first sync after the start date that confirms the change,
    the new price is **appended as a period starting at its effective instant**
    — never written over the old one — and `reprice` then corrects the records
-   ingested since the boundary while leaving earlier ones as they were. A
+   made since the boundary while leaving earlier ones as they were. A
    table test pins the rule: no built-in period starts after `VerifiedOn`.
    The lesson in knowledge is extended in the same change with this second
    half — how to record the change once it happens (Decision 8).
@@ -103,7 +104,8 @@ documents for billing.
    price revision" example (which would stamp the 2027 price on 2026) is
    rewritten. A config key that is a snapshot alias (`gemini-3.7-flash-001`)
    is its own single-period entry; it does not inherit the base model's
-   schedule — documented.
+   schedule — documented, and `models` / `doctor` name such a key when it
+   shadows a model whose price changes.
 
 6. **Surfaces.**
    - `models` shows one row per period with a `FROM` column (`—` for the open
@@ -113,8 +115,8 @@ documents for billing.
      `{"from": "<RFC 3339>" | "", …rates}`, always written (no `omitempty`;
      `""` for the open first period, the repository's convention for an
      absent instant). A test pins both keys. "Now" is injected for tests.
-   - `ingest` / `reprice` unknown-model warnings and `unpriced_*` use
-     `Known` and do not depend on time.
+   - `ingest` / `reprice` unknown-model warnings use `Known`; `unpriced_*`
+     counts stored $0 rows. Neither depends on time.
    - `budget` and `report` sum stored `cost_usd`; no change.
    - `verify` does no pricing; no change.
 
@@ -182,7 +184,7 @@ documents for billing.
   if a need appears; nothing here prevents it.
 - **E. UTC or local-time boundary.** Neither is documented by Google for
   billing; the Pacific boundary is the nearest documented one.
-- **G. Write the published 2027 price into the built-in table now.** January
+- **F. Write the published 2027 price into the built-in table now.** January
   would switch over by itself, and for a budget monitor over-counting (if the
   change were cancelled) is the safer direction than under-counting. Rejected
   by the maintainer's decision to keep the recorded lesson: a dated

@@ -153,7 +153,9 @@ Only the fields you set are overridden; the rest inherit (cache multiplier 0.1,
 grounding $0.014, non-global 1.1). Config has no dates: a field you set applies
 at every date, so setting `input_per_mtok` or `output_per_mtok` on a model
 whose price changes over time erases that change — `models` and `doctor` say
-so. See [config.example.toml](config.example.toml) for every field.
+so. A key must be the model's own id: a snapshot alias such as
+`gemini-3.7-flash-001` is a separate entry that starts from the standard
+modifiers, not from the built-in model, and does not follow its price changes. See [config.example.toml](config.example.toml) for every field.
 
 ## Configuration
 

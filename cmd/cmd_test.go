@@ -257,6 +257,21 @@ func TestPrintModelsShowsEveryPeriod(t *testing.T) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
 	}
+	// Exactly at the boundary the new period is the one in force; a second
+	// before, the first one is.
+	for _, c := range []struct {
+		now  time.Time
+		want string
+	}{
+		{boundary, "*2027-01-01T00:00:00-08:00"},
+		{boundary.Add(-time.Second), "sched  *—"},
+	} {
+		buf.Reset()
+		printModels(&buf, tbl, &config.Config{}, c.now)
+		if !strings.Contains(buf.String(), c.want) {
+			t.Errorf("at %v: missing %q in:\n%s", c.now, c.want, buf.String())
+		}
+	}
 	// A table with no price change stars nothing.
 	buf.Reset()
 	printModels(&buf, pricing.Table{"flat": pricing.Flat(pricing.StandardRates(1, 5))}, &config.Config{}, boundary)

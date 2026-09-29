@@ -118,6 +118,7 @@ func TestRepriceAcrossAPriceChange(t *testing.T) {
 	body := header +
 		usage("2026-09-01T00:31:43+09:00") +
 		usage("2027-01-01T16:59:59+09:00") + // 07:59:59Z — the last second of the old price
+		usage("2027-01-01T16:59:59.5+09:00") + // stored as 07:59:59: truncation, not rounding, keeps it old
 		usage("2027-01-01T17:00:00+09:00") + // 08:00:00Z — midnight Pacific, the new price
 		usage("2027-01-01T17:00:00.5+09:00")
 	changed := pricing.Default()
@@ -144,16 +145,16 @@ func TestRepriceAcrossAPriceChange(t *testing.T) {
 	if _, err := Run(st, root, pricing.Default(), "h"); err != nil {
 		t.Fatal(err)
 	}
-	if got := costs(st); len(got) != 4 || got[0] != 0.75 || got[3] != 0.75 {
+	if got := costs(st); len(got) != 5 || got[0] != 0.75 || got[4] != 0.75 {
 		t.Fatalf("flat table: %v", got)
 	}
 	// The sync appends the period and reprices: only the two records from the
 	// boundary on move, and 2026 is left exactly as it was.
 	res, err := Reprice(st, changed, false)
-	if err != nil || res.Changed != 2 || res.OldTotalUSD != 3.00 || res.NewTotalUSD != 4.50 {
+	if err != nil || res.Changed != 2 || res.OldTotalUSD != 3.75 || res.NewTotalUSD != 5.25 {
 		t.Fatalf("%+v %v", res, err)
 	}
-	if got := costs(st); got[0] != 0.75 || got[1] != 0.75 || got[2] != 1.50 || got[3] != 1.50 {
+	if got := costs(st); got[0] != 0.75 || got[1] != 0.75 || got[2] != 0.75 || got[3] != 1.50 || got[4] != 1.50 {
 		t.Fatalf("after reprice: %v", got)
 	}
 
