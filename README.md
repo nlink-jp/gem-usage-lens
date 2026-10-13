@@ -139,6 +139,12 @@ midnight US Pacific Time on its date, and `reprice` then corrects the calls
 made from that instant on without touching earlier ones. Until that update
 ships, calls after a price change are recorded at the old price.
 
+Both promotional prices — 4 Argon's and the Flash models' introductory one — are
+"provided through 50% credits back on net spend" per the pricing page. The
+table uses the promotional figure the page lists, so in Cloud Billing the
+charge appears at the full price with the credit as a separate line, and the
+lens matches the total after the credit.
+
 A call is matched to the table by the model id gem-agent recorded, which is the
 name in gem-agent's config. Forms Vertex accepts for the same model resolve to
 it: a `-NNN` snapshot or `@<version>` suffix, and Google's publisher
@@ -162,7 +168,9 @@ at every date, so setting `input_per_mtok` or `output_per_mtok` on a model
 whose price changes over time erases that change — `models` and `doctor` say
 so. A key must be the model's own id: a snapshot alias such as
 `gemini-3.7-flash-001` is a separate entry that starts from the standard
-modifiers, not from the built-in model, and does not follow its price changes. See [config.example.toml](config.example.toml) for every field.
+modifiers, not from the built-in model, and does not follow its price changes —
+and so is a publisher-qualified key such as `google/gemini-4-argon`; key the
+override as `gemini-4-argon`, which the qualified id resolves to. See [config.example.toml](config.example.toml) for every field.
 
 ## Configuration
 

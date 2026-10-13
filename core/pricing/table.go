@@ -15,7 +15,7 @@ type Rates struct {
 	OutputPerMTok float64 `json:"output_per_mtok"` // output AND thinking tokens ("answer and reasoning" share one price)
 
 	// CacheReadMultiplier × InputPerMTok is the price of a cached prompt
-	// token. 0.1 for every Gemini 3 model on the pricing page today, but kept
+	// token. 0.1 for every Gemini 3 and 4 model on the pricing page today, but kept
 	// per model: the one footnoted exception is what breaks a constant.
 	CacheReadMultiplier float64 `json:"cache_read_multiplier"`
 
@@ -65,10 +65,16 @@ const (
 // The table states only prices in force on VerifiedOn. The page also lists
 // prices scheduled for a later date (4 Argon from 2026-12-01; 3.8 / 3.7 / 3.6
 // Flash from 2027-01-01); those are not written ahead of time, because a
-// scheduled change can be cancelled. Once a sync confirms it happened, it is APPENDED as a period
-// starting at midnight US Pacific Time on its date — written as a literal
-// RFC 3339 instant — never written over the old price, so `reprice` corrects
-// records made after the change and leaves earlier ones alone (ADR-0001).
+// scheduled change can be cancelled. Once a sync confirms it happened, it is
+// APPENDED as a period starting at midnight US Pacific Time on its date —
+// written as a literal RFC 3339 instant — never written over the old price, so
+// `reprice` corrects records made after the change and leaves earlier ones
+// alone (ADR-0001).
+//
+// The promotional prices in force (4 Argon, 3.8 / 3.7 / 3.6 Flash) are the
+// page's starred rows, "provided through 50% credits back on net spend": the
+// table states the net price, as the page's own rows do. Cloud Billing shows
+// the full charge with the credit as a separate line.
 const VerifiedOn = "2026-10-14"
 
 // StandardRates returns a Rates for the given base prices with the standard
