@@ -107,6 +107,13 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   the first "Grounding with Google Search" cell. Billing is per query and one
   prompt may issue several, so per-call is a lower bound; the 5,000 free
   queries per month are not modelled (list price, not invoice).
+- **The recorded model id is the gem-agent config's name, verbatim** — the
+  operator may write `google/gemini-4-argon` (Vertex expands it to
+  `publishers/google/models/…`). `candidates` tries the exact id, then the
+  `-NNN` / `@version`-stripped id, then both again with Google's publisher
+  qualification removed (only `google`; another publisher stays unknown).
+  Aggregation keeps the id as recorded. A new model family is not done until
+  `doctor`/`reprice --dry-run` on real transcripts shows no unpriced id.
 - **A model missing from the table costs $0, silently at the engine — never
   silently at the surface.** `ingest` / `reprice` warn on stderr;
   `report --summary` derives `unpriced_records` / `unpriced_models` from the

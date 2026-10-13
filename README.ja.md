@@ -129,6 +129,12 @@ Vertex AI の **global** エンドポイントにおける USD / 100 万トー�
 その瞬間以降の呼び出しだけを直します（それより前には触れません）。その更新が出荷
 されるまで、価格変更後の呼び出しは旧単価で記録されます。
 
+呼び出しは gem-agent が記録したモデル ID（gem-agent の設定に書いた名前）で単価表と
+照合します。Vertex が同じモデルとして受け付ける形はそのモデルに解決します: `-NNN`
+スナップショットや `@<version>` の接尾辞、Google の publisher 修飾
+（`google/gemini-4-argon`、`publishers/google/models/…`）。レポートの集計は記録された
+ID のままです。
+
 単価表に無いモデルは **$0** になり、それをあらゆる面で明示します: `ingest` /
 `reprice` の stderr 警告、`report --summary` の `unpriced_records`（モデル別）、
 GUI のバッジ。リリースを待たずに直すには `config.toml` で単価を書いて `reprice`:

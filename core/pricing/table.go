@@ -112,7 +112,11 @@ func Default() Table {
 
 // Periods returns a model's periods and whether it is known. It tries an
 // exact match, then the id with a trailing "@<version>" or a "-NNN" numeric
-// snapshot suffix removed ("gemini-3.5-flash-001" → "gemini-3.5-flash").
+// snapshot suffix removed ("gemini-3.5-flash-001" → "gemini-3.5-flash"), then
+// the same for the id with Google's publisher qualification removed
+// ("google/gemini-4-argon" or "…publishers/google/models/gemini-4-argon" →
+// "gemini-4-argon"): gem-agent records the model name as configured, and Vertex
+// accepts the qualified forms.
 func (t Table) Periods(model string) ([]Period, bool) {
 	for _, c := range candidates(model) {
 		if ps, ok := t[c]; ok && len(ps) > 0 {
@@ -184,6 +188,28 @@ func (t Table) Current(now time.Time) map[string]Rates {
 }
 
 func candidates(m string) []string {
+	out := suffixCandidates(m)
+	if b := stripGooglePublisher(m); b != m {
+		out = append(out, suffixCandidates(b)...)
+	}
+	return out
+}
+
+// stripGooglePublisher removes Google's publisher qualification from a model
+// id: the "google/<model>" shorthand or a resource name ending in
+// "publishers/google/models/<model>". Only Google's publisher is removed — the
+// table prices Gemini, and another publisher's model must stay unknown.
+func stripGooglePublisher(m string) string {
+	const resource = "publishers/google/models/"
+	if i := strings.LastIndex(m, resource); i >= 0 && (i == 0 || m[i-1] == '/') {
+		m = m[i+len(resource):]
+	} else if strings.HasPrefix(m, "google/") {
+		m = m[len("google/"):]
+	}
+	return m
+}
+
+func suffixCandidates(m string) []string {
 	out := []string{m}
 	if i := strings.IndexByte(m, '@'); i > 0 {
 		out = append(out, m[:i])

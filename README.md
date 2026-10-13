@@ -129,14 +129,21 @@ that line is a lower bound. The 5,000 Grounding Queries per month at no charge
 figure is the list price, not the invoice.
 
 **Each call is priced at the rate in force when it was made.** A model's price
-can change on a date — Google lists 3.8 / 3.7 / 3.6 Flash at $1.50 / $7.50 from
-2027-01-01, up from the current introductory $0.75 / $3.75 — so the table holds
-each model's prices as periods, each starting at an instant (`models` shows a
-`FROM` column). The table states only prices in force: a scheduled change is
-added once it has happened, as a new period starting at midnight US Pacific
-Time on its date, and `reprice` then corrects the calls made from that instant
-on without touching earlier ones. Until that update ships, calls after a price
-change are recorded at the old price.
+can change on a date — Google lists 4 Argon at $4 / $20 from 2026-12-01, up
+from the current promotional $2 / $10, and 3.8 / 3.7 / 3.6 Flash at
+$1.50 / $7.50 from 2027-01-01, up from the current introductory $0.75 / $3.75 —
+so the table holds each model's prices as periods, each starting at an instant
+(`models` shows a `FROM` column). The table states only prices in force: a
+scheduled change is added once it has happened, as a new period starting at
+midnight US Pacific Time on its date, and `reprice` then corrects the calls
+made from that instant on without touching earlier ones. Until that update
+ships, calls after a price change are recorded at the old price.
+
+A call is matched to the table by the model id gem-agent recorded, which is the
+name in gem-agent's config. Forms Vertex accepts for the same model resolve to
+it: a `-NNN` snapshot or `@<version>` suffix, and Google's publisher
+qualification (`google/gemini-4-argon`, `publishers/google/models/…`). Reports
+still group by the id as recorded.
 
 A model missing from the table costs **$0**, and every surface says so:
 `ingest` and `reprice` warn on stderr, `report --summary` counts

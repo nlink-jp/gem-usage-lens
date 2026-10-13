@@ -177,6 +177,44 @@ func TestLookupNormalizes(t *testing.T) {
 	}
 }
 
+// gem-agent records the model name as configured, and Vertex accepts Google's
+// publisher-qualified forms — "google/gemini-4-argon" was the first Argon id
+// seen in a real transcript.
+func TestLookupStripsGooglePublisher(t *testing.T) {
+	tbl := Default()
+	want, _ := tbl.Lookup("gemini-4-argon", time.Time{})
+	for _, id := range []string{
+		"google/gemini-4-argon",
+		"publishers/google/models/gemini-4-argon",
+		"projects/p/locations/global/publishers/google/models/gemini-4-argon",
+		"google/gemini-3.5-flash-001", // the snapshot suffix still applies
+		"google/gemini-3.5-flash@default",
+	} {
+		if !tbl.Known(id) {
+			t.Errorf("%s should resolve", id)
+		}
+	}
+	if got, _ := tbl.Lookup("google/gemini-4-argon", time.Time{}); got != want {
+		t.Fatalf("google/gemini-4-argon priced %+v, want %+v", got, want)
+	}
+	for _, id := range []string{
+		"meta/gemini-4-argon", // another publisher is not Gemini's price
+		"publishers/meta/models/gemini-4-argon",
+		"xpublishers/google/models/gemini-4-argon",
+		"google/",
+		"google/gemini-3.1-pro-preview", // deliberately absent stays absent
+	} {
+		if tbl.Known(id) {
+			t.Errorf("%s must stay unknown", id)
+		}
+	}
+	// An exact config key in the qualified form wins over the stripped id.
+	own := Table{"google/m": Flat(rates(9, 9)), "m": Flat(rates(1, 1))}
+	if r, _ := own.Lookup("google/m", time.Time{}); r.InputPerMTok != 9 {
+		t.Fatalf("exact key must win, got %+v", r)
+	}
+}
+
 func TestStandardRatesCarryModifiers(t *testing.T) {
 	r := StandardRates(2, 8)
 	if r.InputPerMTok != 2 || r.OutputPerMTok != 8 || r.CacheReadMultiplier != 0.1 || r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.014 {
