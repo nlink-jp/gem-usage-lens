@@ -82,8 +82,9 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   `cache_read_multiplier`, `grounding_per_req`, `non_global_multiplier` sit on
   `Rates`; the engine reads the record's model's values. `VerifiedOn` is the
   date the table was checked against the pricing page, and the table carries
-  **no scheduled future prices** (the page lists 2027 prices for 3.8 / 3.7 / 3.6 Flash —
-  re-check at the next sync, don't pre-write). **Once a change has happened, APPEND
+  **no scheduled future prices** (the page lists 4 Argon at $4 / $20 from
+  2026-12-01 and 2027 prices for 3.8 / 3.7 / 3.6 Flash — re-check at the next
+  sync, don't pre-write). **Once a change has happened, APPEND
   it as a period — never overwrite the old price** (ADR-0001): a model maps to
   periods, each starting at a literal RFC 3339 instant (midnight US Pacific on the
   date, e.g. `2027-01-01T00:00:00-08:00`; whole seconds; never derived from a
@@ -101,7 +102,7 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   (pre-0057 header) is treated as global, not surcharged.
 - **Grounding** is a per-request charge invisible in tokens: added once per
   `source=web_search` record. `web_fetch` (URL context) has no extra charge.
-  The rate is the page's **Gemini 3** row ($14 per 1,000 Grounding Queries);
+  The rate is the page's **Gemini 3 / Gemini 4** row ($14 per 1,000 Grounding Queries);
   the $35 row on the same page is Gemini 2.x — read the section heading, not
   the first "Grounding with Google Search" cell. Billing is per query and one
   prompt may issue several, so per-call is a lower bound; the 5,000 free

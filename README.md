@@ -125,8 +125,8 @@ Cache storage charges (explicit caching) and batch / priority tiers are not
 modelled — gem-agent uses neither. Grounding is billed per Grounding Query and
 one prompt may issue several; the lens charges once per `web_search` call, so
 that line is a lower bound. The 5,000 Grounding Queries per month at no charge
-(aggregated across Gemini 3 models) are not modelled either — the figure is the
-list price, not the invoice.
+(aggregated across Gemini 3 and Gemini 4 models) are not modelled either — the
+figure is the list price, not the invoice.
 
 **Each call is priced at the rate in force when it was made.** A model's price
 can change on a date — Google lists 3.8 / 3.7 / 3.6 Flash at $1.50 / $7.50 from

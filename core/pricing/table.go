@@ -53,23 +53,23 @@ func Flat(r Rates) []Period { return []Period{{Rates: r}} }
 // Standard modifiers, from the Vertex AI pricing page (see VerifiedOn).
 const (
 	cacheReadMult       = 0.10
-	groundingPerReq     = 14.0 / 1000 // "$14 per 1,000 Grounding Queries" (Gemini 3 row; the $35 row is Gemini 2.x)
+	groundingPerReq     = 14.0 / 1000 // "$14 per 1,000 Grounding Queries" (Gemini 3 / 4 row; the $35 row is Gemini 2.x)
 	nonGlobalMultiplier = 1.10
 )
 
 // VerifiedOn is the date the built-in table was last checked, column by
-// column, against the Vertex AI pricing page (Gemini 3 section: global and
-// non-global rows, cached-input column, grounding table). `models` prints it
-// so a reader can judge how stale the table may be.
+// column, against the Vertex AI pricing page (Gemini 4 and Gemini 3 sections:
+// global and non-global rows, cached-input column, grounding table). `models`
+// prints it so a reader can judge how stale the table may be.
 //
 // The table states only prices in force on VerifiedOn. The page also lists
-// prices scheduled for a later date (3.8 / 3.7 / 3.6 Flash from 2027-01-01);
-// those are not written ahead of time, because a scheduled change can be
-// cancelled. Once a sync confirms it happened, it is APPENDED as a period
+// prices scheduled for a later date (4 Argon from 2026-12-01; 3.8 / 3.7 / 3.6
+// Flash from 2027-01-01); those are not written ahead of time, because a
+// scheduled change can be cancelled. Once a sync confirms it happened, it is APPENDED as a period
 // starting at midnight US Pacific Time on its date — written as a literal
 // RFC 3339 instant — never written over the old price, so `reprice` corrects
 // records made after the change and leaves earlier ones alone (ADR-0001).
-const VerifiedOn = "2026-09-29"
+const VerifiedOn = "2026-10-14"
 
 // StandardRates returns a Rates for the given base prices with the standard
 // modifiers. It is the starting point for a model defined purely in the
@@ -91,13 +91,15 @@ func rates(input, output float64) Rates {
 // [pricing.models]. Unknown models are absent by design → zero cost, and
 // ingest / report surface them as unpriced.
 //
-// Flash-class models have no long-context premium (the ≤200k and >200k
-// columns carry the same price), so one flat rate per model is exact.
+// Flash-class models and 4 Argon have no long-context premium (Flash's ≤200k
+// and >200k columns carry the same price; 4 Argon's rows have no tier), so one
+// flat rate per model is exact.
 // Tiered models (3.1 Pro preview: a higher rate above 200k prompt tokens) are
 // not in the table — the cost engine has no prompt-length tier, so pricing
 // them flat would silently under-count long prompts.
 func Default() Table {
 	return Table{
+		"gemini-4-argon":         Flat(rates(2.00, 10.00)),
 		"gemini-3.8-flash":       Flat(rates(0.75, 3.75)),
 		"gemini-3.7-flash":       Flat(rates(0.75, 3.75)),
 		"gemini-3.6-flash":       Flat(rates(0.75, 3.75)),

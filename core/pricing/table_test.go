@@ -7,10 +7,11 @@ import (
 )
 
 func TestDefaultTableAgainstPricingPage(t *testing.T) {
-	// The Gemini 3 rows of the Vertex AI pricing page, global endpoint, as
+	// The Gemini 4 and Gemini 3 rows of the Vertex AI pricing page, global endpoint, as
 	// verified on VerifiedOn. If a sync changes one of these, change the
 	// expectation deliberately and bump VerifiedOn.
 	want := map[string][2]float64{
+		"gemini-4-argon":         {2.00, 10.00},
 		"gemini-3.8-flash":       {0.75, 3.75},
 		"gemini-3.7-flash":       {0.75, 3.75},
 		"gemini-3.6-flash":       {0.75, 3.75},
@@ -35,9 +36,10 @@ func TestDefaultTableAgainstPricingPage(t *testing.T) {
 		if r.InputPerMTok != io[0] || r.OutputPerMTok != io[1] {
 			t.Fatalf("%s: %v/%v want %v/%v", m, r.InputPerMTok, r.OutputPerMTok, io[0], io[1])
 		}
-		// Every Gemini 3 row on the page prices cached input at 0.1× input and
-		// non-global at 1.1×; grounding is $14 per 1,000 Grounding Queries
-		// (the Gemini 3 row — the $35 row on the page belongs to Gemini 2.x).
+		// Every Gemini 4 / Gemini 3 row on the page prices cached input at 0.1×
+		// input and non-global at 1.1×; grounding is $14 per 1,000 Grounding
+		// Queries (the row shared by Gemini 3 and 4 — the $35 row on the page
+		// belongs to Gemini 2.x).
 		if r.CacheReadMultiplier != 0.1 || r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.014 {
 			t.Fatalf("%s modifiers: %+v", m, r)
 		}
