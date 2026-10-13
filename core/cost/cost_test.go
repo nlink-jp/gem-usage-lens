@@ -85,6 +85,20 @@ func TestComputeRecordUnknownModelIsZero(t *testing.T) {
 	}
 }
 
+// A record whose model id carries Google's publisher qualification — what
+// gem-agent writes when its config names "google/gemini-4-argon" — is priced
+// as the model it names, end to end: $2 per 1M uncached prompt tokens, ×1.1
+// off the global endpoint.
+func TestComputeRecordPricesPublisherQualifiedID(t *testing.T) {
+	u := model.Usage{Prompt: 1_000_000, Total: 1_000_000}
+	for loc, want := range map[string]float64{"global": 2.00, "us": 2.20} {
+		rec := model.UsageRecord{Model: "google/gemini-4-argon", Source: model.SourceMain, Location: loc, Usage: u}
+		if got := ComputeRecord(rec, pricing.Default()).ListPriceUSD; !near(got, want) {
+			t.Errorf("%s: %v, want %v", loc, got, want)
+		}
+	}
+}
+
 // The cost engine must use the record's own model's multiplier, not a
 // constant: a config-priced model with a different cache multiplier bills
 // cache hits differently.
