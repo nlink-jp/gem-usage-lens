@@ -3,7 +3,7 @@ module github.com/nlink-jp/gem-usage-lens
 go 1.26
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/nlink-jp/toml v0.1.1
 	modernc.org/sqlite v1.38.2
 )
 

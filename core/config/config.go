@@ -16,6 +16,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -23,7 +24,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"github.com/nlink-jp/toml"
 
 	"github.com/nlink-jp/gem-usage-lens/core/budget"
 	"github.com/nlink-jp/gem-usage-lens/core/platform"
@@ -101,11 +102,13 @@ func Load(path string) (cfg *Config, resolvedPath string, found bool, err error)
 		return cfg, path, false, statErr
 	}
 
-	md, err := toml.DecodeFile(path, cfg)
-	if err != nil {
+	_, err = toml.DecodeFile(path, cfg)
+	var unknown *toml.UnknownKeysError
+	if err != nil && !errors.As(err, &unknown) {
 		return cfg, path, true, fmt.Errorf("parse config %s: %w", path, err)
 	}
-	if undecoded := md.Undecoded(); len(undecoded) > 0 {
+	if unknown != nil {
+		undecoded := unknown.Keys
 		keys := make([]string, 0, len(undecoded))
 		for _, k := range undecoded {
 			keys = append(keys, k.String())
