@@ -1,6 +1,7 @@
 package pricing
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -10,16 +11,17 @@ func TestDefaultTableAgainstPricingPage(t *testing.T) {
 	// The Gemini 4 and Gemini 3 rows of the Vertex AI pricing page, global endpoint, as
 	// verified on VerifiedOn. If a sync changes one of these, change the
 	// expectation deliberately and bump VerifiedOn.
-	want := map[string][2]float64{
-		"gemini-4-carbon":        {2.00, 10.00},
-		"gemini-4-argon":         {2.00, 10.00},
-		"gemini-3.8-flash":       {0.75, 3.75},
-		"gemini-3.7-flash":       {0.75, 3.75},
-		"gemini-3.6-flash":       {0.75, 3.75},
-		"gemini-3.5-flash":       {1.50, 9.00},
-		"gemini-3.5-flash-lite":  {0.30, 2.50},
-		"gemini-3.1-flash-lite":  {0.25, 1.50},
-		"gemini-3-flash-preview": {0.50, 3.00},
+	// input, output, cached input — each as the page prints it, per 1M tokens.
+	want := map[string][3]float64{
+		"gemini-4-carbon":        {2.00, 10.00, 0.10},
+		"gemini-4-argon":         {2.00, 10.00, 0.10},
+		"gemini-3.8-flash":       {0.75, 3.75, 0.075},
+		"gemini-3.7-flash":       {0.75, 3.75, 0.075},
+		"gemini-3.6-flash":       {0.75, 3.75, 0.075},
+		"gemini-3.5-flash":       {1.50, 9.00, 0.15},
+		"gemini-3.5-flash-lite":  {0.30, 2.50, 0.03},
+		"gemini-3.1-flash-lite":  {0.25, 1.50, 0.025},
+		"gemini-3-flash-preview": {0.50, 3.00, 0.05},
 	}
 	tbl := Default()
 	if len(tbl) != len(want) {
@@ -37,11 +39,17 @@ func TestDefaultTableAgainstPricingPage(t *testing.T) {
 		if r.InputPerMTok != io[0] || r.OutputPerMTok != io[1] {
 			t.Fatalf("%s: %v/%v want %v/%v", m, r.InputPerMTok, r.OutputPerMTok, io[0], io[1])
 		}
-		// Every Gemini 4 / Gemini 3 row on the page prices cached input at 0.1×
-		// input and non-global at 1.1×; grounding is $14 per 1,000 Grounding
-		// Queries (the row shared by Gemini 3 and 4 — the $35 row on the page
-		// belongs to Gemini 2.x).
-		if r.CacheReadMultiplier != 0.1 || r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.014 {
+		// The cached-input column is pinned as a price, not as a ratio: the
+		// Gemini 3 rows are a tenth of input, the Gemini 4 rows a twentieth,
+		// and assuming one ratio for all is how Argon shipped at twice its
+		// cached price.
+		if got := r.InputPerMTok * r.CacheReadMultiplier; math.Abs(got-io[2]) > 1e-9 {
+			t.Fatalf("%s: cached input $%v per 1M, want $%v", m, got, io[2])
+		}
+		// Every Gemini 4 / Gemini 3 row on the page prices non-global at 1.1×;
+		// grounding is $14 per 1,000 Grounding Queries (the row shared by
+		// Gemini 3 and 4 — the $35 row on the page belongs to Gemini 2.x).
+		if r.NonGlobalMultiplier != 1.1 || r.GroundingPerReq != 0.014 {
 			t.Fatalf("%s modifiers: %+v", m, r)
 		}
 	}
@@ -206,7 +214,7 @@ func TestLookupStripsGooglePublisher(t *testing.T) {
 		"xpublishers/google/models/gemini-4-argon",
 		"google/",
 		"google/gemini-3.1-pro-preview",    // deliberately absent stays absent
-		"gemini-4-carbon-cyber-permissive", // allowlist-only, full price: not Carbon's promotional rate
+		"gemini-4-carbon-cyber-permissive", // priced without the promotion: not Carbon's rate
 	} {
 		if tbl.Known(id) {
 			t.Errorf("%s must stay unknown", id)

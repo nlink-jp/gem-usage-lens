@@ -15,8 +15,8 @@ type Rates struct {
 	OutputPerMTok float64 `json:"output_per_mtok"` // output AND thinking tokens ("answer and reasoning" share one price)
 
 	// CacheReadMultiplier × InputPerMTok is the price of a cached prompt
-	// token. 0.1 for every Gemini 3 and 4 model on the pricing page today, but kept
-	// per model: the one footnoted exception is what breaks a constant.
+	// token. 0.1 for every Gemini 3 model on the pricing page and 0.05 for the
+	// Gemini 4 models, which is why it is kept per model and not a constant.
 	CacheReadMultiplier float64 `json:"cache_read_multiplier"`
 
 	// GroundingPerReq is the per-request charge for Grounding with Google
@@ -52,7 +52,8 @@ func Flat(r Rates) []Period { return []Period{{Rates: r}} }
 
 // Standard modifiers, from the Vertex AI pricing page (see VerifiedOn).
 const (
-	cacheReadMult       = 0.10
+	cacheReadMult       = 0.10        // Gemini 3 rows: cached input is a tenth of input
+	gemini4CacheReadMul = 0.05        // Gemini 4 rows: $0.10 cached at $2 input (and $0.20 at $4)
 	groundingPerReq     = 14.0 / 1000 // "$14 per 1,000 Grounding Queries" (Gemini 3 / 4 row; the $35 row is Gemini 2.x)
 	nonGlobalMultiplier = 1.10
 )
@@ -93,6 +94,13 @@ func rates(input, output float64) Rates {
 	}
 }
 
+// gemini4Rates is rates with the Gemini 4 cached-input ratio.
+func gemini4Rates(input, output float64) Rates {
+	r := rates(input, output)
+	r.CacheReadMultiplier = gemini4CacheReadMul
+	return r
+}
+
 // Default returns the built-in rate table: USD per 1M tokens on the global
 // endpoint, verified on VerifiedOn. Override or extend via config.toml
 // [pricing.models]. Unknown models are absent by design → zero cost, and
@@ -107,8 +115,8 @@ func rates(input, output float64) Rates {
 // them flat would silently under-count long prompts.
 func Default() Table {
 	return Table{
-		"gemini-4-carbon":        Flat(rates(2.00, 10.00)),
-		"gemini-4-argon":         Flat(rates(2.00, 10.00)),
+		"gemini-4-carbon":        Flat(gemini4Rates(2.00, 10.00)),
+		"gemini-4-argon":         Flat(gemini4Rates(2.00, 10.00)),
 		"gemini-3.8-flash":       Flat(rates(0.75, 3.75)),
 		"gemini-3.7-flash":       Flat(rates(0.75, 3.75)),
 		"gemini-3.6-flash":       Flat(rates(0.75, 3.75)),

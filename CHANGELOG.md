@@ -10,16 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **Gemini 4 Carbon** (`gemini-4-carbon`, GA 2026-11-10) is priced: $2.00 input /
-  $10.00 output per 1M tokens on the global endpoint, cached input at 0.1×,
-  non-global at 1.1×, Grounding with Google Search at $14 per 1,000 Grounding
-  Queries — the same row values as Gemini 4 Argon, with no long-context tier.
+  $10.00 output per 1M tokens on the global endpoint, cached input $0.10
+  (0.05× input), non-global at 1.1×, Grounding with Google Search at $14 per
+  1,000 Grounding Queries — the same row values as Gemini 4 Argon, with no
+  long-context tier.
   $2 / $10 is the promotional price through 2026-11-30, provided as 50%
   credits back on net spend. Google lists $4 / $20 from 2026-12-01, which —
   like every scheduled price (ADR-0001) — is added once it has happened.
-  Gemini 4 Carbon Cyber Permissive (allowlist-only, no promotional price) is
-  not added; it shows as unpriced if it ever appears.
+  Gemini 4 Carbon Cyber Permissive (no promotional price) is not added; it shows as unpriced if it ever appears.
 - The built-in table is re-verified against the Vertex AI pricing page
-  (`VerifiedOn` 2026-11-11): no Gemini 4 Argon or Gemini 3 price changed.
+  (`VerifiedOn` 2026-11-11): no Gemini 3 price changed.
+
+### Fixed
+
+- **Gemini 4 Argon's cached input was priced at twice the page's figure.** The
+  pricing page lists cached input for the Gemini 4 models at $0.10 per 1M
+  tokens against $2.00 input — 0.05× — while v0.2.1 gave Argon the Gemini 3
+  ratio of 0.1× ($0.20). The table now carries 0.05× for Gemini 4, and the
+  table test pins the cached-input price of every model as the page prints it.
+  Run `gem-usage-lens reprice` (or Reprice in the GUI) to correct Argon calls
+  already in the store; their cost goes down.
 
 ## [0.2.2] - 2026-11-04
 
