@@ -82,7 +82,7 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   `cache_read_multiplier`, `grounding_per_req`, `non_global_multiplier` sit on
   `Rates`; the engine reads the record's model's values. `VerifiedOn` is the
   date the table was checked against the pricing page, and the table carries
-  **no scheduled future prices** (the page lists 4 Argon at $4 / $20 from
+  **no scheduled future prices** (the page lists 4 Carbon and 4 Argon at $4 / $20 from
   2026-12-01 and 2027 prices for 3.8 / 3.7 / 3.6 Flash — re-check at the next
   sync, don't pre-write). **Once a change has happened, APPEND
   it as a period — never overwrite the old price** (ADR-0001): a model maps to

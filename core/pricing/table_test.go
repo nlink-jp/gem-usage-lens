@@ -11,6 +11,7 @@ func TestDefaultTableAgainstPricingPage(t *testing.T) {
 	// verified on VerifiedOn. If a sync changes one of these, change the
 	// expectation deliberately and bump VerifiedOn.
 	want := map[string][2]float64{
+		"gemini-4-carbon":        {2.00, 10.00},
 		"gemini-4-argon":         {2.00, 10.00},
 		"gemini-3.8-flash":       {0.75, 3.75},
 		"gemini-3.7-flash":       {0.75, 3.75},
@@ -187,6 +188,8 @@ func TestLookupStripsGooglePublisher(t *testing.T) {
 		"google/gemini-4-argon",
 		"publishers/google/models/gemini-4-argon",
 		"projects/p/locations/global/publishers/google/models/gemini-4-argon",
+		"google/gemini-4-carbon",
+		"gemini-4-carbon@default",
 		"google/gemini-3.5-flash-001", // the snapshot suffix still applies
 		"google/gemini-3.5-flash@default",
 	} {
@@ -202,7 +205,8 @@ func TestLookupStripsGooglePublisher(t *testing.T) {
 		"publishers/meta/models/gemini-4-argon",
 		"xpublishers/google/models/gemini-4-argon",
 		"google/",
-		"google/gemini-3.1-pro-preview", // deliberately absent stays absent
+		"google/gemini-3.1-pro-preview",    // deliberately absent stays absent
+		"gemini-4-carbon-cyber-permissive", // allowlist-only, full price: not Carbon's promotional rate
 	} {
 		if tbl.Known(id) {
 			t.Errorf("%s must stay unknown", id)

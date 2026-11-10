@@ -63,19 +63,20 @@ const (
 // prints it so a reader can judge how stale the table may be.
 //
 // The table states only prices in force on VerifiedOn. The page also lists
-// prices scheduled for a later date (4 Argon from 2026-12-01; 3.8 / 3.7 / 3.6
-// Flash from 2027-01-01); those are not written ahead of time, because a
+// prices scheduled for a later date (4 Carbon and 4 Argon from 2026-12-01;
+// 3.8 / 3.7 / 3.6 Flash from 2027-01-01); those are not written ahead of time,
+// because a
 // scheduled change can be cancelled. Once a sync confirms it happened, it is
 // APPENDED as a period starting at midnight US Pacific Time on its date —
 // written as a literal RFC 3339 instant — never written over the old price, so
 // `reprice` corrects records made after the change and leaves earlier ones
 // alone (ADR-0001).
 //
-// The promotional prices in force (4 Argon, 3.8 / 3.7 / 3.6 Flash) are the
+// The promotional prices in force (4 Carbon, 4 Argon, 3.8 / 3.7 / 3.6 Flash) are the
 // page's starred rows, "provided through 50% credits back on net spend": the
 // table states the net price, as the page's own rows do. Cloud Billing shows
 // the full charge with the credit as a separate line.
-const VerifiedOn = "2026-10-14"
+const VerifiedOn = "2026-11-11"
 
 // StandardRates returns a Rates for the given base prices with the standard
 // modifiers. It is the starting point for a model defined purely in the
@@ -97,14 +98,16 @@ func rates(input, output float64) Rates {
 // [pricing.models]. Unknown models are absent by design → zero cost, and
 // ingest / report surface them as unpriced.
 //
-// Flash-class models and 4 Argon have no long-context premium (Flash's ≤200k
-// and >200k columns carry the same price; 4 Argon's rows have no tier), so one
+// Flash-class models, 4 Carbon and 4 Argon have no long-context premium
+// (Flash's ≤200k and >200k columns carry the same price; the Gemini 4 rows have
+// no tier), so one
 // flat rate per model is exact.
 // Tiered models (3.1 Pro preview: a higher rate above 200k prompt tokens) are
 // not in the table — the cost engine has no prompt-length tier, so pricing
 // them flat would silently under-count long prompts.
 func Default() Table {
 	return Table{
+		"gemini-4-carbon":        Flat(rates(2.00, 10.00)),
 		"gemini-4-argon":         Flat(rates(2.00, 10.00)),
 		"gemini-3.8-flash":       Flat(rates(0.75, 3.75)),
 		"gemini-3.7-flash":       Flat(rates(0.75, 3.75)),

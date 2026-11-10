@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Gemini 4 Carbon** (`gemini-4-carbon`, GA 2026-11-10) is priced: $2.00 input /
+  $10.00 output per 1M tokens on the global endpoint, cached input at 0.1×,
+  non-global at 1.1×, Grounding with Google Search at $14 per 1,000 Grounding
+  Queries — the same row values as Gemini 4 Argon, with no long-context tier.
+  $2 / $10 is the promotional price through 2026-11-30, provided as 50%
+  credits back on net spend. Google lists $4 / $20 from 2026-12-01, which —
+  like every scheduled price (ADR-0001) — is added once it has happened.
+  Gemini 4 Carbon Cyber Permissive (allowlist-only, no promotional price) is
+  not added; it shows as unpriced if it ever appears.
+- The built-in table is re-verified against the Vertex AI pricing page
+  (`VerifiedOn` 2026-11-11): no Gemini 4 Argon or Gemini 3 price changed.
+
 ## [0.2.2] - 2026-11-04
 
 ### Changed

@@ -129,7 +129,7 @@ that line is a lower bound. The 5,000 Grounding Queries per month at no charge
 figure is the list price, not the invoice.
 
 **Each call is priced at the rate in force when it was made.** A model's price
-can change on a date — Google lists 4 Argon at $4 / $20 from 2026-12-01, up
+can change on a date — Google lists 4 Carbon and 4 Argon at $4 / $20 from 2026-12-01, up
 from the current promotional $2 / $10, and 3.8 / 3.7 / 3.6 Flash at
 $1.50 / $7.50 from 2027-01-01, up from the current introductory $0.75 / $3.75 —
 so the table holds each model's prices as periods, each starting at an instant
@@ -139,7 +139,7 @@ midnight US Pacific Time on its date, and `reprice` then corrects the calls
 made from that instant on without touching earlier ones. Until that update
 ships, calls after a price change are recorded at the old price.
 
-Both promotional prices — 4 Argon's and the Flash models' introductory one — are
+The promotional prices — 4 Carbon's, 4 Argon's and the Flash models' introductory one — are
 "provided through 50% credits back on net spend" per the pricing page. The
 table uses the promotional figure the page lists, so in Cloud Billing the
 charge appears at the full price with the credit as a separate line, and the
