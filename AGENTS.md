@@ -85,7 +85,12 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   **no scheduled future prices** (the page lists 4 Carbon and 4 Argon at $4 / $20 from
   2026-12-01, 2027 prices for 3.8 / 3.7 / 3.6 Flash, and a cache-write price for
   4 Hydrogen from 2027-01-12 — re-check at the next sync, don't pre-write; the
-  cache-write charge also needs a token bucket gem-agent does not record). **Once a change has happened, APPEND
+  cache-write charge also needs a token bucket gem-agent does not record).
+  **A sync records what the page did not print** as well as what it did: when a
+  row is missing (3 Flash Preview's Standard output row, 2026-11-13), say so in
+  the `VerifiedOn` comment and the CHANGELOG rather than calling the table
+  re-verified. Read the footnotes of the section too — they carry charges the
+  table has no column for (failed long completions, from 2026-11-13). **Once a change has happened, APPEND
   it as a period — never overwrite the old price** (ADR-0001): a model maps to
   periods, each starting at a literal RFC 3339 instant (midnight US Pacific on the
   date, e.g. `2027-01-01T00:00:00-08:00`; whole seconds; never derived from a

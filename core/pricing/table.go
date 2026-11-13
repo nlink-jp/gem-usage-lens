@@ -78,6 +78,11 @@ const (
 // page's starred rows, "provided through 50% credits back on net spend": the
 // table states the net price, as the page's own rows do. Cloud Billing shows
 // the full charge with the credit as a separate line.
+//
+// Read on VerifiedOn but not printed by the page: the Standard table had no
+// output row for Gemini 3 Flash Preview. Its $3.00 is carried forward; the
+// same day's Priority ($5.40, 1.8×) and Batch ($1.50, 0.5×) rows both still
+// derive from it.
 const VerifiedOn = "2026-11-13"
 
 // StandardRates returns a Rates for the given base prices with the standard

@@ -21,7 +21,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   not in force, and gem-agent's transcripts do not record cache-write tokens,
   so the lens has nothing to price with it yet.
 - The built-in table is re-verified against the Vertex AI pricing page
-  (`VerifiedOn` 2026-11-13): no existing price changed.
+  (`VerifiedOn` 2026-11-13): no price the page prints has changed. The
+  Standard table no longer prints an output row for Gemini 3 Flash Preview;
+  its $3.00 is kept, and the Priority and Batch rows read the same day
+  ($5.40, $1.50) still derive from it.
+
+### Changed
+
+- The README now says two things it left out: the cached-input factor is per
+  model (0.05 for the Gemini 4 models, as priced since v0.2.3), and requests
+  that fail are not counted. From 2026-11-13 Google charges a Gemini 4
+  completion longer than 32K tokens for its retrievable tokens even when the
+  request ends in a timeout; gem-agent writes a usage record only for a
+  response it received, so such a charge is on the invoice and not in the
+  lens.
 
 ## [0.2.3] - 2026-11-11
 

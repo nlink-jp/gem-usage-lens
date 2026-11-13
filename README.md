@@ -127,7 +127,13 @@ the Gemini 4 models (the `CACHE-READ` column of `models`).
 Cache storage charges (explicit caching) and batch / priority tiers are not
 modelled — gem-agent uses neither. Nor is a charge for writing to the cache:
 the pricing page lists one for Gemini 4 Hydrogen from 2027-01-12, and
-gem-agent's transcripts do not record cache-write tokens. Grounding is billed per Grounding Query and
+gem-agent's transcripts do not record cache-write tokens.
+
+Only calls that returned a response are counted: gem-agent writes a usage
+record from the response it received. From 2026-11-13 the pricing page says a
+Gemini 4 completion longer than 32K tokens is charged for its retrievable
+tokens even if the request ends in a client or server timeout — such a charge
+appears on the invoice and not here. Grounding is billed per Grounding Query and
 one prompt may issue several; the lens charges once per `web_search` call, so
 that line is a lower bound. The 5,000 Grounding Queries per month at no charge
 (aggregated across Gemini 3 and Gemini 4 models) are not modelled either — the

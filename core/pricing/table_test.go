@@ -201,6 +201,7 @@ func TestLookupStripsGooglePublisher(t *testing.T) {
 		"gemini-4-carbon@default",
 		"google/gemini-4-hydrogen",
 		"gemini-4-hydrogen@default",
+		"gemini-4-hydrogen-001",
 		"google/gemini-3.5-flash-001", // the snapshot suffix still applies
 		"google/gemini-3.5-flash@default",
 	} {
@@ -218,6 +219,8 @@ func TestLookupStripsGooglePublisher(t *testing.T) {
 		"google/",
 		"google/gemini-3.1-pro-preview",    // deliberately absent stays absent
 		"gemini-4-carbon-cyber-permissive", // priced without the promotion: not Carbon's rate
+		"gemini-4-hydrogen-lite",           // a different model, should one appear, is not Hydrogen's price
+		"meta/gemini-4-hydrogen",
 	} {
 		if tbl.Known(id) {
 			t.Errorf("%s must stay unknown", id)
