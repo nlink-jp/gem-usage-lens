@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] - 2026-11-13
+
+### Added
+
+- **Gemini 4 Hydrogen** (`gemini-4-hydrogen`, generally available) is priced:
+  $1.50 input / $7.50 output per 1M tokens on the global endpoint, cached
+  input $0.075 (0.05× input, the Gemini 4 ratio), non-global at 1.1×,
+  Grounding with Google Search at $14 per 1,000 Grounding Queries, no
+  long-context tier. This is a list price, not a promotional one. Calls
+  recorded before this update were stored at $0; run `gem-usage-lens reprice`
+  once to price them.
+  The pricing page also lists a **cache write** price for Hydrogen ($1.875
+  per 1M tokens) "effective January 12, 2027". It is not in the table: it is
+  not in force, and gem-agent's transcripts do not record cache-write tokens,
+  so the lens has nothing to price with it yet.
+- The built-in table is re-verified against the Vertex AI pricing page
+  (`VerifiedOn` 2026-11-13): no existing price changed.
+
 ## [0.2.3] - 2026-11-11
 
 ### Added

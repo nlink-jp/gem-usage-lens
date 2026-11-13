@@ -83,8 +83,9 @@ docs/{en,ja}/           RFP (canonical design; a dated record — its price figu
   `Rates`; the engine reads the record's model's values. `VerifiedOn` is the
   date the table was checked against the pricing page, and the table carries
   **no scheduled future prices** (the page lists 4 Carbon and 4 Argon at $4 / $20 from
-  2026-12-01 and 2027 prices for 3.8 / 3.7 / 3.6 Flash — re-check at the next
-  sync, don't pre-write). **Once a change has happened, APPEND
+  2026-12-01, 2027 prices for 3.8 / 3.7 / 3.6 Flash, and a cache-write price for
+  4 Hydrogen from 2027-01-12 — re-check at the next sync, don't pre-write; the
+  cache-write charge also needs a token bucket gem-agent does not record). **Once a change has happened, APPEND
   it as a period — never overwrite the old price** (ADR-0001): a model maps to
   periods, each starting at a literal RFC 3339 instant (midnight US Pacific on the
   date, e.g. `2027-01-01T00:00:00-08:00`; whole seconds; never derived from a

@@ -121,8 +121,13 @@ the official pricing page and stamped with the date they were verified
 × 1.1 when the session's location is not "global"
 ```
 
+The cached-input factor is per model: 0.1 for the Gemini 3 models, 0.05 for
+the Gemini 4 models (the `CACHE-READ` column of `models`).
+
 Cache storage charges (explicit caching) and batch / priority tiers are not
-modelled — gem-agent uses neither. Grounding is billed per Grounding Query and
+modelled — gem-agent uses neither. Nor is a charge for writing to the cache:
+the pricing page lists one for Gemini 4 Hydrogen from 2027-01-12, and
+gem-agent's transcripts do not record cache-write tokens. Grounding is billed per Grounding Query and
 one prompt may issue several; the lens charges once per `web_search` call, so
 that line is a lower bound. The 5,000 Grounding Queries per month at no charge
 (aggregated across Gemini 3 and Gemini 4 models) are not modelled either — the
