@@ -23,6 +23,7 @@ make test-linux # same suite on Linux (container)
 make vet        # go vet on host + GOOS=windows + GOOS=linux
 make build-all  # cross-compile, CGO-free
 make package    # archives + notarize the darwin zip
+make vuln            # govulncheck over the build; `make package` runs it first and stops on a finding
 make verify-release
 ```
 
