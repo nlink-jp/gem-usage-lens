@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Gemini 4 Neon** (`gemini-4-neon`, generally available 2026-11-18) is
+  priced: $3.00 input / $15.00 output per 1M tokens on the global endpoint,
+  cached input $0.15 (0.05× input, the Gemini 4 ratio), non-global at 1.1×,
+  Grounding with Google Search at $14 per 1,000 Grounding Queries, no
+  long-context tier. This is a list price, not a promotional one. Calls
+  recorded before this update were stored at $0; run `gem-usage-lens reprice`
+  once to price them.
+  As for Hydrogen, the pricing page lists a **cache write** price for Neon
+  ($3.75 per 1M tokens) "effective January 12, 2027". It is not in the table,
+  for the same reasons: it is not in force, and gem-agent's transcripts do not
+  record cache-write tokens.
+- The built-in table is re-verified against the Vertex AI pricing page
+  (`VerifiedOn` 2026-11-19): no existing price changed.
+
 ### Changed
 
 - `make package` runs `govulncheck ./...` first (`make vuln`) and stops on a

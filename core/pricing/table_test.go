@@ -13,6 +13,7 @@ func TestDefaultTableAgainstPricingPage(t *testing.T) {
 	// expectation deliberately and bump VerifiedOn.
 	// input, output, cached input — each as the page prints it, per 1M tokens.
 	want := map[string][3]float64{
+		"gemini-4-neon":          {3.00, 15.00, 0.15},
 		"gemini-4-hydrogen":      {1.50, 7.50, 0.075},
 		"gemini-4-carbon":        {2.00, 10.00, 0.10},
 		"gemini-4-argon":         {2.00, 10.00, 0.10},
@@ -202,6 +203,8 @@ func TestLookupStripsGooglePublisher(t *testing.T) {
 		"google/gemini-4-hydrogen",
 		"gemini-4-hydrogen@default",
 		"gemini-4-hydrogen-001",
+		"google/gemini-4-neon",
+		"gemini-4-neon@default",
 		"google/gemini-3.5-flash-001", // the snapshot suffix still applies
 		"google/gemini-3.5-flash@default",
 	} {

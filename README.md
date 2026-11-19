@@ -126,7 +126,7 @@ the Gemini 4 models (the `CACHE-READ` column of `models`).
 
 Cache storage charges (explicit caching) and batch / priority tiers are not
 modelled — gem-agent uses neither. Nor is a charge for writing to the cache:
-the pricing page lists one for Gemini 4 Hydrogen from 2027-01-12, and
+the pricing page lists one for Gemini 4 Hydrogen and Gemini 4 Neon from 2027-01-12, and
 gem-agent's transcripts do not record cache-write tokens.
 
 Only calls that returned a response are counted: gem-agent writes a usage

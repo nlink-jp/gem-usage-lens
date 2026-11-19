@@ -53,7 +53,7 @@ func Flat(r Rates) []Period { return []Period{{Rates: r}} }
 // Standard modifiers, from the Vertex AI pricing page (see VerifiedOn).
 const (
 	cacheReadMult       = 0.10        // Gemini 3 rows: cached input is a tenth of input
-	gemini4CacheReadMul = 0.05        // Gemini 4 rows: $0.10 cached at $2 input, $0.075 at $1.50 (and $0.20 at $4)
+	gemini4CacheReadMul = 0.05        // Gemini 4 rows: $0.10 cached at $2 input, $0.075 at $1.50, $0.15 at $3 (and $0.20 at $4)
 	groundingPerReq     = 14.0 / 1000 // "$14 per 1,000 Grounding Queries" (Gemini 3 / 4 row; the $35 row is Gemini 2.x)
 	nonGlobalMultiplier = 1.10
 )
@@ -65,9 +65,9 @@ const (
 //
 // The table states only prices in force on VerifiedOn. The page also lists
 // prices scheduled for a later date (4 Carbon and 4 Argon from 2026-12-01;
-// 3.8 / 3.7 / 3.6 Flash from 2027-01-01; a cache-write price for 4 Hydrogen,
-// $1.875 per 1M tokens, "effective January 12, 2027" — a charge the engine
-// has no dimension for yet); those are not written ahead of time, because a
+// 3.8 / 3.7 / 3.6 Flash from 2027-01-01; cache-write prices for 4 Hydrogen and
+// 4 Neon, $1.875 and $3.75 per 1M tokens, "effective January 12, 2027" — a
+// charge the engine has no dimension for yet); those are not written ahead of time, because a
 // scheduled change can be cancelled. Once a sync confirms it happened, it is
 // APPENDED as a period starting at midnight US Pacific Time on its date —
 // written as a literal RFC 3339 instant — never written over the old price, so
@@ -83,7 +83,7 @@ const (
 // output row for Gemini 3 Flash Preview. Its $3.00 is carried forward; the
 // same day's Priority ($5.40, 1.8×) and Batch ($1.50, 0.5×) rows both still
 // derive from it.
-const VerifiedOn = "2026-11-13"
+const VerifiedOn = "2026-11-19"
 
 // StandardRates returns a Rates for the given base prices with the standard
 // modifiers. It is the starting point for a model defined purely in the
@@ -112,7 +112,7 @@ func gemini4Rates(input, output float64) Rates {
 // [pricing.models]. Unknown models are absent by design → zero cost, and
 // ingest / report surface them as unpriced.
 //
-// Flash-class models, 4 Hydrogen, 4 Carbon and 4 Argon have no long-context premium
+// Flash-class models, 4 Neon, 4 Hydrogen, 4 Carbon and 4 Argon have no long-context premium
 // (Flash's ≤200k and >200k columns carry the same price; the Gemini 4 rows have
 // no tier), so one
 // flat rate per model is exact.
@@ -121,6 +121,7 @@ func gemini4Rates(input, output float64) Rates {
 // them flat would silently under-count long prompts.
 func Default() Table {
 	return Table{
+		"gemini-4-neon":          Flat(gemini4Rates(3.00, 15.00)),
 		"gemini-4-hydrogen":      Flat(gemini4Rates(1.50, 7.50)),
 		"gemini-4-carbon":        Flat(gemini4Rates(2.00, 10.00)),
 		"gemini-4-argon":         Flat(gemini4Rates(2.00, 10.00)),
