@@ -124,6 +124,10 @@ the official pricing page and stamped with the date they were verified
 The cached-input factor is per model: 0.1 for the Gemini 3 models, 0.05 for
 the Gemini 4 models (the `CACHE-READ` column of `models`).
 
+Input is priced at the text / image / video rate. Gemini 3 Flash Preview and
+Gemini 3.1 Flash-Lite list a higher input price for audio, which is not
+modelled: gem-agent's usage records do not break input tokens down by modality.
+
 Cache storage charges (explicit caching) and batch / priority tiers are not
 modelled — gem-agent uses neither. Nor is a charge for writing to the cache:
 the pricing page lists one for Gemini 4 Hydrogen and Gemini 4 Neon from 2027-01-12, and

@@ -116,6 +116,10 @@ Vertex AI の **global** エンドポイントにおける USD / 100 万トー�
 キャッシュ入力の係数はモデルごとです。Gemini 3 系は 0.1、Gemini 4 系は 0.05 です
 （`models` の `CACHE-READ` 列）。
 
+入力はテキスト / 画像 / 動画の単価で計算します。Gemini 3 Flash Preview と Gemini 3.1 Flash-Lite は
+音声入力に高い単価を掲載していますが、対象外です（gem-agent の利用記録は入力トークンを
+モダリティ別に分けていません）。
+
 キャッシュ保存料（明示キャッシュ）やバッチ / 優先度ティアは対象外です（gem-agent は
 使いません）。キャッシュへの書き込みの料金も対象外です。料金ページは Gemini 4 Hydrogen と
 Gemini 4 Neon に 2027-01-12 からの書き込み単価を掲載していますが、gem-agent の transcript は書き込みトークン数を

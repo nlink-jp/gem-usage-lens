@@ -21,10 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   for the same reasons: it is not in force, and gem-agent's transcripts do not
   record cache-write tokens.
 - The built-in table is re-verified against the Vertex AI pricing page
-  (`VerifiedOn` 2026-11-19): no existing price changed.
+  (`VerifiedOn` 2026-11-19): no price the page prints has changed. The
+  Standard table still prints no output row for Gemini 3 Flash Preview; its
+  $3.00 is kept, and the Priority and Batch output rows read the same day
+  ($5.40, $1.50) still derive from it.
 
 ### Changed
 
+- The README now says that a higher input price for audio is not modelled:
+  Gemini 3 Flash Preview ($1.00) and Gemini 3.1 Flash-Lite ($0.50) list one,
+  and gem-agent's usage records do not break input tokens down by modality,
+  so all input is priced at the text / image / video rate.
 - `make package` runs `govulncheck ./...` first (`make vuln`) and stops on a
   finding, so a release cannot be built past one.
 - `make vuln` — and so `make package` — scans every platform in `PLATFORMS`,
